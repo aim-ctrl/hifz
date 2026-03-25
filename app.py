@@ -67,7 +67,7 @@ def save_data(db_data):
 # --- LOGIK FÖR SPACED REPETITION ---
 def calculate_next_date(current_step):
     today = datetime.date.today()
-    intervals = {1: 1, 2: 3, 3: 7, 4: 30, 5: 30}
+    intervals = {1: 0, 2: 1, 3: 3, 4: 7, 5: 30}
     days = intervals.get(current_step, 1)
     return today + datetime.timedelta(days=days)
 
