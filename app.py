@@ -3,148 +3,124 @@ import requests
 import datetime
 import uuid
 
-# --- KONFIGURATION & SECRETS ---
+# --- KONFIGURATION & SECRETS (Samma som tidigare) ---
 try:
     BIN_ID = st.secrets["JSONBIN_BIN_ID"]
     API_KEY = st.secrets["JSONBIN_API_KEY"]
     PIN_KOD = st.secrets["PIN_KOD"]
 except KeyError:
-    st.error("Saknar secrets! Se till att konfigurera JSONBIN_BIN_ID, JSONBIN_API_KEY och PIN_KOD i Streamlit Cloud.")
+    st.error("Saknar secrets! Se till att konfigurera JSONBIN_BIN_ID, JSONBIN_API_KEY och PIN_KOD.")
     st.stop()
 
 URL = f"https://api.jsonbin.io/v3/b/{BIN_ID}"
-HEADERS = {
-    "X-Master-Key": API_KEY,
-    "Content-Type": "application/json"
-}
+HEADERS = {"X-Master-Key": API_KEY, "Content-Type": "application/json"}
+
+# Lista med Surah-namn (Exempel - du kan fylla på hela listan)
+SURAH_LISTA = [
+    "Al-Fatihah", "Al-Baqarah", "Al-Imran", "An-Nisa", "Al-Ma'idah", 
+    "Al-An'am", "Al-A'raf", "Al-Anfal", "At-Tawbah", "Yunus"
+    # ... fyll på med fler vid behov
+]
 
 # --- DATABASFUNKTIONER ---
 def load_data():
     try:
         response = requests.get(URL, headers=HEADERS)
         if response.status_code == 200:
-            data = response.json()
-            return data.get("record", [])
-        else:
-            st.error(f"Kunde inte hämta data: {response.status_code}")
-            return []
-    except Exception as e:
-        st.error(f"Ett fel uppstod vid hämtning: {e}")
+            return response.json().get("record", [])
+        return []
+    except:
         return []
 
 def save_data(data):
-    try:
-        response = requests.put(URL, json=data, headers=HEADERS)
-        if response.status_code != 200:
-            st.error(f"Kunde inte spara data: {response.status_code}")
-    except Exception as e:
-        st.error(f"Ett fel uppstod vid sparning: {e}")
+    requests.put(URL, json=data, headers=HEADERS)
 
-# --- LOGIK FÖR SPACED REPETITION ---
 def calculate_next_date(current_step):
     today = datetime.date.today()
-    if current_step == 1:
-        return today + datetime.timedelta(days=1)
-    elif current_step == 2:
-        return today + datetime.timedelta(days=3)
-    elif current_step == 3:
-        return today + datetime.timedelta(days=7)
-    elif current_step >= 4:
-        return today + datetime.timedelta(days=30)
-    return today
+    intervals = {1: 1, 2: 3, 3: 7, 4: 30, 5: 30}
+    days = intervals.get(current_step, 1)
+    return today + datetime.timedelta(days=days)
 
-def handle_success(item, data):
-    item["steg"] += 1
-    # Begränsa till max steg 5 (Manzil)
-    if item["steg"] > 5:
-        item["steg"] = 5
-    
-    item["nasta_repetition"] = str(calculate_next_date(item["steg"] - 1))
-    save_data(data)
-    st.rerun()
-
-def handle_failure(item, data):
-    item["steg"] = 1
-    item["nasta_repetition"] = str(datetime.date.today())
-    save_data(data)
-    st.rerun()
-
-# --- SESSION STATE FÖR INLOGGNING ---
+# --- SESSION STATE & INLOGGNING ---
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
 
-# --- INLOGGNINGSSKÄRM ---
 if not st.session_state.logged_in:
-    st.title("🔒 Hifz Tracker Inloggning")
-    pin_input = st.text_input("Ange PIN-kod", type="password")
-    if st.button("Logga in"):
-        if pin_input == PIN_KOD:
+    st.title("🔒 Hifz Tracker")
+    if st.text_input("Ange PIN-kod", type="password") == PIN_KOD:
+        if st.button("Logga in"):
             st.session_state.logged_in = True
             st.rerun()
-        else:
-            st.error("Fel PIN-kod.")
-    st.stop() # Stoppa appen här om man inte är inloggad
+    st.stop()
 
 # --- HUVUDAPP ---
 st.title("📖 Hifz Spaced Repetition")
-
-# Hämta data
 data = load_data()
 
-# Skapa flikar
 tab1, tab2, tab3 = st.tabs(["Dagens Repetitioner", "Alla Kapitel", "Lägg till nytt"])
 
 with tab1:
     st.header("Att repetera idag")
     today_str = str(datetime.date.today())
-    
-    # Filtrera fram kapitel som ska repeteras idag eller tidigare
     to_review = [item for item in data if item.get("nasta_repetition", today_str) <= today_str]
     
     if not to_review:
-        st.success("Bra jobbat! Du har inga fler repetitioner planerade för idag. 🎉")
+        st.success("Bra jobbat! 🎉")
     else:
         for item in to_review:
-            with st.container():
-                st.subheader(item["namn"])
+            with st.expander(f"📖 {item['namn']} (Sid: {item.get('sidor', 'N/A')})"):
                 st.write(f"Nuvarande steg: **{item['steg']}**")
-                
-                col1, col2 = st.columns(2)
-                with col1:
-                    if st.button("✅ Klarade det felfritt!", key=f"success_{item['id']}"):
-                        handle_success(item, data)
-                with col2:
-                    if st.button("❌ Tvekade/Gjorde fel", key=f"fail_{item['id']}"):
-                        handle_failure(item, data)
-                st.divider()
-
-with tab2:
-    st.header("Översikt över alla kapitel")
-    if not data:
-        st.info("Inga kapitel tillagda ännu.")
-    else:
-        for item in data:
-            with st.expander(f"{item['namn']} (Steg {item['steg']})"):
-                st.write(f"**Nästa repetition:** {item['nasta_repetition']}")
-                if st.button("🗑️ Ta bort", key=f"delete_{item['id']}"):
-                    data.remove(item)
+                c1, c2 = st.columns(2)
+                if c1.button("✅ Felfritt", key=f"ok_{item['id']}"):
+                    item["steg"] = min(item["steg"] + 1, 5)
+                    item["nasta_repetition"] = str(calculate_next_date(item["steg"]))
+                    save_data(data)
+                    st.rerun()
+                if c2.button("❌ Repetera", key=f"fail_{item['id']}"):
+                    item["steg"] = 1
+                    item["nasta_repetition"] = today_str
                     save_data(data)
                     st.rerun()
 
+with tab2:
+    st.header("Hantera kapitel")
+    for i, item in enumerate(data):
+        with st.expander(f"{item['namn']} - Steg {item['steg']}"):
+            # Manuellt ändra steg
+            nytt_steg = st.slider("Ändra steg manuellt", 1, 5, int(item['steg']), key=f"slider_{item['id']}")
+            if nytt_steg != item['steg']:
+                item['steg'] = nytt_steg
+                item["nasta_repetition"] = str(calculate_next_date(nytt_steg))
+                save_data(data)
+                st.toast(f"Uppdaterade {item['namn']} till steg {nytt_steg}")
+            
+            st.write(f"Nästa datum: {item['nasta_repetition']}")
+            if st.button("🗑️ Ta bort", key=f"del_{item['id']}"):
+                data.pop(i)
+                save_data(data)
+                st.rerun()
+
 with tab3:
-    st.header("Lägg till ett nytt kapitel")
-    new_name = st.text_input("Namn på Surah/Sida/Verser")
-    if st.button("Lägg till"):
-        if new_name:
-            new_item = {
-                "id": str(uuid.uuid4()),
-                "namn": new_name,
-                "steg": 1,
-                "nasta_repetition": str(datetime.date.today())
-            }
-            data.append(new_item)
-            save_data(data)
-            st.success(f"Lade till {new_name}! Den dyker upp under Dagens Repetitioner.")
-            st.rerun()
-        else:
-            st.warning("Du måste skriva in ett namn.")
+    st.header("Lägg till nytt")
+    # Dropdown för namn
+    val d_namn = st.selectbox("Välj Surah", SURAH_LISTA)
+    
+    # Sida/Sidintervall
+    col_s1, col_s2 = st.columns(2)
+    sida_start = col_s1.number_input("Från sida", min_value=1, value=1)
+    sida_slut = col_s2.number_input("Till sida (valfritt)", min_value=1, value=sida_start)
+    
+    sido_text = f"{sida_start}-{sida_slut}" if sida_start != sida_slut else f"{sida_start}"
+
+    if st.button("Lägg till i listan"):
+        new_item = {
+            "id": str(uuid.uuid4()),
+            "namn": val_namn,
+            "sidor": sido_text,
+            "steg": 1,
+            "nasta_repetition": str(datetime.date.today())
+        }
+        data.append(new_item)
+        save_data(data)
+        st.success(f"Lade till {val_namn} (Sida {sido_text})")
+        st.rerun()
