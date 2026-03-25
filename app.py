@@ -126,8 +126,6 @@ with tab1:
 
 # --- FLIK 2: VISUELL ÖVERSIKT ---
 with tab2:
-    st.header("Översikt över dina framsteg (Hela Koranen)")
-    
     # Skapa ett lexikon för snabb uppslagning av dina sparade kapitel
     tillagda_kapitel = {item['namn']: int(item.get('steg', 1)) for item in data}
     
@@ -157,7 +155,6 @@ with tab2:
 
 # --- FLIK 3: HANTERA KAPITEL ---
 with tab3:
-    st.header("Detaljer & Ändra Steg manuellt")
     if not data:
         st.info("Inga kapitel tillagda ännu.")
     else:
@@ -188,9 +185,7 @@ with tab3:
                     st.rerun()
 
 # --- FLIK 4: LÄGG TILL NYTT ---
-with tab4:
-    st.header("Lägg till i din tracker")
-    
+with tab4:    
     add_mode = st.radio("Välj metod för att lägga till:", ["Enskilt kapitel", "Lägg till flera kapitel (Bulk)"])
     st.divider()
     
