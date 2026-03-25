@@ -49,16 +49,16 @@ def load_data():
     try:
         response = requests.get(URL, headers=HEADERS)
         if response.status_code == 200:
-            data = response.json()
-            return data.get("record", [])
+            db_data = response.json()
+            return db_data.get("record", [])
         return []
     except Exception as e:
         st.error(f"Ett fel uppstod vid hämtning: {e}")
         return []
 
-def save_data(data):
+def save_data(db_data):
     try:
-        response = requests.put(URL, json=data, headers=HEADERS)
+        response = requests.put(URL, json=db_data, headers=HEADERS)
         if response.status_code != 200:
             st.error(f"Kunde inte spara data: {response.status_code}")
     except Exception as e:
@@ -90,7 +90,7 @@ if not st.session_state.logged_in:
 # --- HUVUDAPP ---
 data = load_data()
 
-# Skapa 4 flikar nu istället för 3
+# Skapa 4 flikar
 tab1, tab2, tab3, tab4 = st.tabs(["Repetitioner", "Visuell Översikt", "Hantera Kapitel", "Lägg till nytt"])
 
 # --- FLIK 1: DAGENS REPETITIONER ---
@@ -124,29 +124,36 @@ with tab1:
                         st.rerun()
                 st.divider()
 
-# --- FLIK 2: VISUELL ÖVERSIKT (NY FLIK) ---
+# --- FLIK 2: VISUELL ÖVERSIKT ---
 with tab2:
-    st.header("Översikt över dina framsteg")
-    if not data:
-        st.info("Inga kapitel tillagda ännu.")
-    else:
-        # Sortera datan efter namn så det blir lätt att läsa
-        sorted_data = sorted(data, key=lambda x: x['namn'])
+    st.header("Översikt över dina framsteg (Hela Koranen)")
+    
+    # Skapa ett lexikon för snabb uppslagning av dina sparade kapitel
+    tillagda_kapitel = {item['namn']: int(item.get('steg', 1)) for item in data}
+    
+    # Starta vår Markdown-tabell
+    md_table = "| Kapitel | Steg (0-5) |\n|---|---|\n"
+    
+    # 1. Loopa igenom den kompletta listan med alla 114 suror
+    for surah in SURAH_LISTA:
+        if surah in tillagda_kapitel:
+            steg = tillagda_kapitel[surah]
+        else:
+            steg = 0
+            
+        cirklar = "🟢" * steg + "⚪" * (5 - steg)
+        md_table += f"| **{surah}** | {cirklar} |\n"
         
-        # Vi använder en Markdown-tabell för en stilren och snabb presentation
-        md_table = "| Kapitel | Steg (1-5) |\n|---|---|\n"
-        
-        for item in sorted_data:
+    # 2. Hitta och lägg till eventuella "egna" namn som du skrivit in manuellt (t.ex. "Juz 30")
+    egna_kapitel = [item for item in data if item['namn'] not in SURAH_LISTA]
+    if egna_kapitel:
+        md_table += "| **--- EGNA KAPITEL ---** | --- |\n"
+        for item in egna_kapitel:
             steg = int(item.get('steg', 1))
-            
-            # Skapa cirklar: gröna fyllda för nuvarande steg, tomma för resten upp till 5
             cirklar = "🟢" * steg + "⚪" * (5 - steg)
-            
-            # Lägg till raden i tabellen
             md_table += f"| **{item['namn']}** | {cirklar} |\n"
             
-        # Rendera tabellen
-        st.markdown(md_table)
+    st.markdown(md_table)
 
 # --- FLIK 3: HANTERA KAPITEL ---
 with tab3:
@@ -239,16 +246,18 @@ with tab4:
                 
                 for i in range(start_idx, slut_idx + 1):
                     surah_namn = SURAH_LISTA[i]
-                    new_item = {
-                        "id": str(uuid.uuid4()),
-                        "namn": surah_namn,
-                        "sidor": "", 
-                        "steg": vald_steg_bulk,
-                        "nasta_repetition": nasta_rep
-                    }
-                    data.append(new_item)
-                    added_count += 1
+                    # Kontrollera så vi inte lägger till dubbletter ifall du redan har den
+                    if not any(d['namn'] == surah_namn for d in data):
+                        new_item = {
+                            "id": str(uuid.uuid4()),
+                            "namn": surah_namn,
+                            "sidor": "", 
+                            "steg": vald_steg_bulk,
+                            "nasta_repetition": nasta_rep
+                        }
+                        data.append(new_item)
+                        added_count += 1
                 
                 save_data(data)
-                st.success(f"Lade till {added_count} kapitel på steg {vald_steg_bulk}!")
+                st.success(f"Lade till {added_count} nya kapitel på steg {vald_steg_bulk}!")
                 st.rerun()
