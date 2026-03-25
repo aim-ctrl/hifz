@@ -42,7 +42,6 @@ raw_surah_names = [
 ]
 
 # Skapar den formaterade listan med nummer före namnet
-# enumerate(list, 1) börjar räkningen på 1 istället för 0
 SURAH_LISTA = [f"{i}. {name}" for i, name in enumerate(raw_surah_names, 1)]
 
 # --- DATABASFUNKTIONER ---
@@ -68,7 +67,6 @@ def save_data(data):
 # --- LOGIK FÖR SPACED REPETITION ---
 def calculate_next_date(current_step):
     today = datetime.date.today()
-    # Intervall: Steg 1 (1 dag), 2 (3 dagar), 3 (7 dagar), 4+ (30 dagar)
     intervals = {1: 1, 2: 3, 3: 7, 4: 30, 5: 30}
     days = intervals.get(current_step, 1)
     return today + datetime.timedelta(days=days)
@@ -101,7 +99,6 @@ with tab1:
     st.header("Att repetera idag")
     today_str = str(datetime.date.today())
     
-    # Filtrera fram kapitel som ska repeteras idag eller tidigare
     to_review = [item for item in data if item.get("nasta_repetition", today_str) <= today_str]
     
     if not to_review:
@@ -134,14 +131,12 @@ with tab2:
     if not data:
         st.info("Inga kapitel tillagda ännu.")
     else:
-        # Sortera data efter namn för lättare överblick
         sorted_data = sorted(data, key=lambda x: x['namn'])
         
         for i, item in enumerate(sorted_data):
             sid_info = f" (Sida: {item['sidor']})" if item.get('sidor') else ""
             with st.expander(f"{item['namn']}{sid_info} - Steg {item['steg']}"):
                 
-                # Manuellt ändra steg
                 nytt_steg = st.select_slider(
                     f"Justera steg manuellt för {item['namn']}",
                     options=[1, 2, 3, 4, 5],
@@ -153,7 +148,7 @@ with tab2:
                     item['steg'] = nytt_steg
                     item["nasta_repetition"] = str(calculate_next_date(nytt_steg))
                     save_data(data)
-                    st.rerun() # Uppdaterar alla flikar direkt
+                    st.rerun()
                 
                 st.write(f"**Nästa repetition:** {item['nasta_repetition']}")
                 
@@ -164,33 +159,79 @@ with tab2:
 
 # --- FLIK 3: LÄGG TILL NYTT ---
 with tab3:
-    st.header("Lägg till ett nytt kapitel")
+    st.header("Lägg till i din tracker")
     
-    val_namn = st.selectbox("Välj Surah från listan", SURAH_LISTA)
-    eget_namn = st.text_input("Eller skriv eget namn (t.ex. Juz 30)")
+    # Val av läge: Enskild eller Bulk
+    add_mode = st.radio("Välj metod för att lägga till:", ["Enskilt kapitel", "Lägg till flera kapitel (Bulk)"])
+    st.divider()
     
-    slutgiltigt_namn = eget_namn if eget_namn else val_namn
-    
-    # Valfritt sidintervall
-    ange_sidor = st.checkbox("Ange specifika sidor")
-    sido_text = ""
-    
-    if ange_sidor:
-        col_s1, col_s2 = st.columns(2)
-        sida_start = col_s1.number_input("Från sida", min_value=1, value=1, step=1)
-        sida_slut = col_s2.number_input("Till sida", min_value=1, value=sida_start, step=1)
-        sido_text = f"{int(sida_start)}-{int(sida_slut)}" if sida_start != sida_slut else f"{int(sida_start)}"
+    if add_mode == "Enskilt kapitel":
+        val_namn = st.selectbox("Välj Surah från listan", SURAH_LISTA)
+        eget_namn = st.text_input("Eller skriv eget namn (t.ex. Juz 30)")
+        slutgiltigt_namn = eget_namn if eget_namn else val_namn
+        
+        ange_sidor = st.checkbox("Ange specifika sidor")
+        sido_text = ""
+        
+        if ange_sidor:
+            col_s1, col_s2 = st.columns(2)
+            sida_start = col_s1.number_input("Från sida", min_value=1, value=1, step=1)
+            sida_slut = col_s2.number_input("Till sida", min_value=1, value=sida_start, step=1)
+            sido_text = f"{int(sida_start)}-{int(sida_slut)}" if sida_start != sida_slut else f"{int(sida_start)}"
 
-    if st.button("Spara kapitel"):
-        if slutgiltigt_namn:
-            new_item = {
-                "id": str(uuid.uuid4()),
-                "namn": slutgiltigt_namn,
-                "sidor": sido_text,
-                "steg": 1,
-                "nasta_repetition": str(datetime.date.today())
-            }
-            data.append(new_item)
-            save_data(data)
-            st.success(f"Lade till {slutgiltigt_namn}!")
-            st.rerun()
+        # Nytt: Välj start-steg för enskilt kapitel
+        vald_steg = st.select_slider("Välj start-steg", options=[1, 2, 3, 4, 5], value=1, key="steg_enskild")
+
+        if st.button("Spara kapitel"):
+            if slutgiltigt_namn:
+                # Sätt datumet till idag om steg är 1, annars beräkna framtida datum
+                nasta_rep = str(datetime.date.today()) if vald_steg == 1 else str(calculate_next_date(vald_steg))
+                
+                new_item = {
+                    "id": str(uuid.uuid4()),
+                    "namn": slutgiltigt_namn,
+                    "sidor": sido_text,
+                    "steg": vald_steg,
+                    "nasta_repetition": nasta_rep
+                }
+                data.append(new_item)
+                save_data(data)
+                st.success(f"Lade till {slutgiltigt_namn} på steg {vald_steg}!")
+                st.rerun()
+
+    else:
+        # Bulk-läge
+        st.write("Välj ett intervall av Suror att lägga till samtidigt.")
+        col_b1, col_b2 = st.columns(2)
+        start_surah = col_b1.selectbox("Från Surah", SURAH_LISTA)
+        slut_surah = col_b2.selectbox("Till Surah", SURAH_LISTA)
+        
+        # Nytt: Välj start-steg för alla kapitel i bulk
+        vald_steg_bulk = st.select_slider("Välj start-steg för alla valda kapitel", options=[1, 2, 3, 4, 5], value=1, key="steg_bulk")
+        
+        if st.button("Spara markerade kapitel"):
+            start_idx = SURAH_LISTA.index(start_surah)
+            slut_idx = SURAH_LISTA.index(slut_surah)
+            
+            if start_idx > slut_idx:
+                st.error("Start-surah måste komma före eller vara samma som Till-surah!")
+            else:
+                added_count = 0
+                nasta_rep = str(datetime.date.today()) if vald_steg_bulk == 1 else str(calculate_next_date(vald_steg_bulk))
+                
+                # Loopa igenom intervallet baserat på index i listan
+                for i in range(start_idx, slut_idx + 1):
+                    surah_namn = SURAH_LISTA[i]
+                    new_item = {
+                        "id": str(uuid.uuid4()),
+                        "namn": surah_namn,
+                        "sidor": "", # Sidor lämnas tomt vid bulk-add
+                        "steg": vald_steg_bulk,
+                        "nasta_repetition": nasta_rep
+                    }
+                    data.append(new_item)
+                    added_count += 1
+                
+                save_data(data)
+                st.success(f"Lade till {added_count} kapitel på steg {vald_steg_bulk}!")
+                st.rerun()
