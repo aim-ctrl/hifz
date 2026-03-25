@@ -97,58 +97,79 @@ tab1, tab2, tab3, tab4 = st.tabs(["Repetitioner", "Visuell Översikt", "Hantera 
 with tab1:
     today_str = str(datetime.date.today())
     
+    # Filtrera ut de som ska repeteras idag eller tidigare
     to_review = [item for item in data if item.get("nasta_repetition", today_str) <= today_str]
+    
+    # Sortera listan efter datum (stigande, så äldst kommer först)
+    to_review = sorted(to_review, key=lambda x: x.get("nasta_repetition", today_str))
     
     if not to_review:
         st.success("Bra jobbat! Du har inga fler repetitioner planerade för idag. 🎉")
     else:
+        st.write(f"Du har **{len(to_review)}** repetition(er) att göra:")
+        st.divider() # En avgränsare för att göra det snyggt innan listan börjar
+        
         for item in to_review:
-            with st.container():
-                sid_info = f" (Sida: {item['sidor']})" if item.get('sidor') else ""
-                st.subheader(f"{item['namn']}{sid_info}")
-                st.write(f"Nuvarande steg: **{item['steg']}**")
+            sid_info = f" (S. {item['sidor']})" if item.get('sidor') else ""
+            
+            # Använd kolumner för en mer kompakt layout på samma rad
+            col1, col2, col3 = st.columns([3, 1, 1])
+            
+            with col1:
+                # Texten blir mindre och tajtare när vi använder st.markdown istället för st.subheader
+                datum_text = item.get('nasta_repetition', today_str)
+                st.markdown(f"**{item['namn']}**{sid_info} | Steg {item['steg']} | 📅 {datum_text}")
                 
-                col1, col2 = st.columns(2)
-                with col1:
-                    if st.button("✅ Klarade det!", key=f"success_{item['id']}"):
-                        item["steg"] = min(item["steg"] + 1, 5)
-                        item["nasta_repetition"] = str(calculate_next_date(item["steg"]))
-                        save_data(data)
-                        st.rerun()
-                with col2:
-                    if st.button("❌ Behöver öva mer", key=f"fail_{item['id']}"):
-                        item["steg"] = 1
-                        item["nasta_repetition"] = today_str
-                        save_data(data)
-                        st.rerun()
-                st.divider()
+            with col2:
+                if st.button("✅ Klar", key=f"success_{item['id']}", use_container_width=True):
+                    item["steg"] = min(item["steg"] + 1, 5)
+                    item["nasta_repetition"] = str(calculate_next_date(item["steg"]))
+                    save_data(data)
+                    st.rerun()
+            with col3:
+                if st.button("❌ Öva", key=f"fail_{item['id']}", use_container_width=True):
+                    item["steg"] = 1
+                    item["nasta_repetition"] = today_str
+                    save_data(data)
+                    st.rerun()
+            
+            # Tunn linje för att skilja raderna åt i den kompakta vyn
+            st.markdown("<hr style='margin: 0.2em 0; border: none; border-bottom: 1px solid #ddd;'>", unsafe_allow_html=True)
 
 # --- FLIK 2: VISUELL ÖVERSIKT ---
 with tab2:
-    # Skapa ett lexikon för snabb uppslagning av dina sparade kapitel
-    tillagda_kapitel = {item['namn']: int(item.get('steg', 1)) for item in data}
+    # Uppdaterat lexikon för att spara både steg och datum
+    tillagda_kapitel = {
+        item['namn']: {
+            'steg': int(item.get('steg', 1)),
+            'datum': item.get('nasta_repetition', '-')
+        } for item in data
+    }
     
-    # Starta vår Markdown-tabell
-    md_table = "| Kapitel | Steg (0-5) |\n|---|---|\n"
+    # Uppdaterad Markdown-tabell med ny kolumn
+    md_table = "| Kapitel | Steg (0-5) | Nästa repetition |\n|---|---|---|\n"
     
     # 1. Loopa igenom den kompletta listan med alla 114 suror
     for surah in SURAH_LISTA:
         if surah in tillagda_kapitel:
-            steg = tillagda_kapitel[surah]
+            steg = tillagda_kapitel[surah]['steg']
+            datum = tillagda_kapitel[surah]['datum']
         else:
             steg = 0
+            datum = "-"
             
         cirklar = "🟢" * steg + "⚪" * (5 - steg)
-        md_table += f"| **{surah}** | {cirklar} |\n"
+        md_table += f"| **{surah}** | {cirklar} | {datum} |\n"
         
-    # 2. Hitta och lägg till eventuella "egna" namn som du skrivit in manuellt (t.ex. "Juz 30")
+    # 2. Hitta och lägg till eventuella "egna" namn
     egna_kapitel = [item for item in data if item['namn'] not in SURAH_LISTA]
     if egna_kapitel:
-        md_table += "| **--- EGNA KAPITEL ---** | --- |\n"
+        md_table += "| **--- EGNA KAPITEL ---** | --- | --- |\n"
         for item in egna_kapitel:
             steg = int(item.get('steg', 1))
+            datum = item.get('nasta_repetition', '-')
             cirklar = "🟢" * steg + "⚪" * (5 - steg)
-            md_table += f"| **{item['namn']}** | {cirklar} |\n"
+            md_table += f"| **{item['namn']}** | {cirklar} | {datum} |\n"
             
     st.markdown(md_table)
 
@@ -240,7 +261,7 @@ with tab4:
                 
                 for i in range(start_idx, slut_idx + 1):
                     surah_namn = SURAH_LISTA[i]
-                    # Kontrollera så vi inte lägger till dubbletter ifall du redan har den
+                    # Kontrollera så vi inte lägger till dubbletter
                     if not any(d['namn'] == surah_namn for d in data):
                         new_item = {
                             "id": str(uuid.uuid4()),
