@@ -102,25 +102,33 @@ with tab2:
 
 with tab3:
     st.header("Lägg till nytt")
-    # Dropdown för namn
-    val d_namn = st.selectbox("Välj Surah", SURAH_LISTA)
+    
+    # Dropdown för kända Surah-namn
+    val_namn = st.selectbox("Välj Surah från listan", SURAH_LISTA)
+    
+    # Möjlighet att skriva ett eget namn om det inte finns i listan
+    eget_namn = st.text_input("Eller skriv eget namn (lämna tomt för att använda listan ovan)")
+    
+    # Bestäm slutgiltigt namn
+    slutgiltigt_namn = eget_namn if eget_namn else val_namn
     
     # Sida/Sidintervall
     col_s1, col_s2 = st.columns(2)
-    sida_start = col_s1.number_input("Från sida", min_value=1, value=1)
-    sida_slut = col_s2.number_input("Till sida (valfritt)", min_value=1, value=sida_start)
+    sida_start = col_s1.number_input("Från sida", min_value=1, value=1, step=1)
+    sida_slut = col_s2.number_input("Till sida", min_value=1, value=sida_start, step=1)
     
-    sido_text = f"{sida_start}-{sida_slut}" if sida_start != sida_slut else f"{sida_start}"
+    # Formatera sidtexten snyggt
+    sido_text = f"{int(sida_start)}-{int(sida_slut)}" if sida_start != sida_slut else f"{int(sida_start)}"
 
     if st.button("Lägg till i listan"):
-        new_item = {
+        nytt_objekt = {
             "id": str(uuid.uuid4()),
-            "namn": val_namn,
+            "namn": slutgiltigt_namn,
             "sidor": sido_text,
             "steg": 1,
             "nasta_repetition": str(datetime.date.today())
         }
-        data.append(new_item)
+        data.append(nytt_objekt)
         save_data(data)
-        st.success(f"Lade till {val_namn} (Sida {sido_text})")
+        st.success(f"Lade till {slutgiltigt_namn} (Sida {sido_text})!")
         st.rerun()
