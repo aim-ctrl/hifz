@@ -95,7 +95,6 @@ tab1, tab2, tab3, tab4 = st.tabs(["Repetitioner", "Visuell Översikt", "Hantera 
 
 # --- FLIK 1: DAGENS REPETITIONER ---
 with tab1:
-    st.header("Att repetera idag")
     today_str = str(datetime.date.today())
     
     to_review = [item for item in data if item.get("nasta_repetition", today_str) <= today_str]
