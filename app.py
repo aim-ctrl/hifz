@@ -88,11 +88,10 @@ if not st.session_state.logged_in:
     st.stop()
 
 # --- HUVUDAPP ---
-st.title("📖 Hifz Spaced Repetition")
 data = load_data()
 
-# Skapa flikar
-tab1, tab2, tab3 = st.tabs(["Dagens Repetitioner", "Alla Kapitel", "Lägg till nytt"])
+# Skapa 4 flikar nu istället för 3
+tab1, tab2, tab3, tab4 = st.tabs(["Repetitioner", "Visuell Översikt", "Hantera Kapitel", "Lägg till nytt"])
 
 # --- FLIK 1: DAGENS REPETITIONER ---
 with tab1:
@@ -125,9 +124,33 @@ with tab1:
                         st.rerun()
                 st.divider()
 
-# --- FLIK 2: ALLA KAPITEL (HANTERING) ---
+# --- FLIK 2: VISUELL ÖVERSIKT (NY FLIK) ---
 with tab2:
-    st.header("Översikt & Ändra Steg")
+    st.header("Översikt över dina framsteg")
+    if not data:
+        st.info("Inga kapitel tillagda ännu.")
+    else:
+        # Sortera datan efter namn så det blir lätt att läsa
+        sorted_data = sorted(data, key=lambda x: x['namn'])
+        
+        # Vi använder en Markdown-tabell för en stilren och snabb presentation
+        md_table = "| Kapitel | Steg (1-5) |\n|---|---|\n"
+        
+        for item in sorted_data:
+            steg = int(item.get('steg', 1))
+            
+            # Skapa cirklar: gröna fyllda för nuvarande steg, tomma för resten upp till 5
+            cirklar = "🟢" * steg + "⚪" * (5 - steg)
+            
+            # Lägg till raden i tabellen
+            md_table += f"| **{item['namn']}** | {cirklar} |\n"
+            
+        # Rendera tabellen
+        st.markdown(md_table)
+
+# --- FLIK 3: HANTERA KAPITEL ---
+with tab3:
+    st.header("Detaljer & Ändra Steg manuellt")
     if not data:
         st.info("Inga kapitel tillagda ännu.")
     else:
@@ -157,11 +180,10 @@ with tab2:
                     save_data(data)
                     st.rerun()
 
-# --- FLIK 3: LÄGG TILL NYTT ---
-with tab3:
+# --- FLIK 4: LÄGG TILL NYTT ---
+with tab4:
     st.header("Lägg till i din tracker")
     
-    # Val av läge: Enskild eller Bulk
     add_mode = st.radio("Välj metod för att lägga till:", ["Enskilt kapitel", "Lägg till flera kapitel (Bulk)"])
     st.divider()
     
@@ -179,12 +201,10 @@ with tab3:
             sida_slut = col_s2.number_input("Till sida", min_value=1, value=sida_start, step=1)
             sido_text = f"{int(sida_start)}-{int(sida_slut)}" if sida_start != sida_slut else f"{int(sida_start)}"
 
-        # Nytt: Välj start-steg för enskilt kapitel
         vald_steg = st.select_slider("Välj start-steg", options=[1, 2, 3, 4, 5], value=1, key="steg_enskild")
 
         if st.button("Spara kapitel"):
             if slutgiltigt_namn:
-                # Sätt datumet till idag om steg är 1, annars beräkna framtida datum
                 nasta_rep = str(datetime.date.today()) if vald_steg == 1 else str(calculate_next_date(vald_steg))
                 
                 new_item = {
@@ -200,13 +220,11 @@ with tab3:
                 st.rerun()
 
     else:
-        # Bulk-läge
         st.write("Välj ett intervall av Suror att lägga till samtidigt.")
         col_b1, col_b2 = st.columns(2)
         start_surah = col_b1.selectbox("Från Surah", SURAH_LISTA)
         slut_surah = col_b2.selectbox("Till Surah", SURAH_LISTA)
         
-        # Nytt: Välj start-steg för alla kapitel i bulk
         vald_steg_bulk = st.select_slider("Välj start-steg för alla valda kapitel", options=[1, 2, 3, 4, 5], value=1, key="steg_bulk")
         
         if st.button("Spara markerade kapitel"):
@@ -219,13 +237,12 @@ with tab3:
                 added_count = 0
                 nasta_rep = str(datetime.date.today()) if vald_steg_bulk == 1 else str(calculate_next_date(vald_steg_bulk))
                 
-                # Loopa igenom intervallet baserat på index i listan
                 for i in range(start_idx, slut_idx + 1):
                     surah_namn = SURAH_LISTA[i]
                     new_item = {
                         "id": str(uuid.uuid4()),
                         "namn": surah_namn,
-                        "sidor": "", # Sidor lämnas tomt vid bulk-add
+                        "sidor": "", 
                         "steg": vald_steg_bulk,
                         "nasta_repetition": nasta_rep
                     }
