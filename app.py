@@ -218,7 +218,7 @@ with tab2:
         with c4:
             if row['tillagd']:
                 # HÄR ÄR ÄNDRINGEN: Vi har tagit bort use_container_width=True
-                if st.button("✅ Repeterat", key=f"tab2_btn_{row['id']}"):
+                if st.button("Repeterat", key=f"tab2_btn_{row['id']}"):
                     
                     for d in data:
                         if d['id'] == row['id']:
