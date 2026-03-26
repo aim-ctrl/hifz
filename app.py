@@ -102,7 +102,7 @@ st.markdown("""
     /* 4. PIXELBREDD FÖR FLIK 2: Riktar bara in sig på rader med exakt 4 kolumner */
     /* Kolumn 1: Kapitel */
     div[data-testid="stHorizontalBlock"]:has(> div[data-testid="column"]:nth-child(4):last-child) > div[data-testid="column"]:nth-child(1) {
-        width: 30px !important;
+        width: 10px !important;
         flex: none !important;
     }
     /* Kolumn 2: Steg */
