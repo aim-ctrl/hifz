@@ -74,62 +74,57 @@ def calculate_next_date(current_step):
 # --- HUVUDAPP ---
 
 # CSS för anpassning av knappar, mobilvy och exakta pixelbredder
+# --- HUVUDAPP ---
+
+# CSS för anpassning av knappar, mobilvy och exakta pixelbredder
 st.markdown("""
     <style>
-    /* 1. Generell knapp-styling */
+    /* 1. Generell knapp-styling - minskad höjd */
     div[data-testid="stButton"] button {
-    padding: 0px !important;
-    min-height: 20px !important; 
-    height: 20px !important;
-    width: 100% !important;
-    
-    /* HÄR ÄNDRAR DU STORLEKEN PÅ SYMBOLERNA */
-    font-size: 10px !important; 
-    
-    /* Valfritt: Centrera symbolen vertikalt */
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-}
-
-    /* 2. Tvinga kolumner att ligga horisontellt även på mobil */
-    [data-testid="stHorizontalBlock"] {
+        padding: 0px !important;
+        min-height: 24px !important; 
+        height: 24px !important;
+        width: 100% !important;
+        font-size: 14px !important; 
         display: flex !important;
-        flex-direction: row !important;
-        flex-wrap: nowrap !important;
         align-items: center !important;
+        justify-content: center !important;
+        margin-top: 0px !important;
     }
 
-    /* 3. Definiera exakta bredder för de 4 kolumnerna i översikten */
-    /* Vi använder nth-child för att pricka rätt kolumn i raden */
-    
-    /* Kapitel-kolumnen (Ge den mer plats) */
-    [data-testid="stHorizontalBlock"] > div:nth-child(1) {
-        width: 20% !important;
-        min-width: 20% !important;
-    }
-    /* Steg-kolumnen (Cirklarna) */
-    [data-testid="stHorizontalBlock"] > div:nth-child(2) {
-        width: 17% !important;
-        min-width: 17% !important;
-    }
-    /* Datum-kolumnen */
-    [data-testid="stHorizontalBlock"] > div:nth-child(3) {
-        width: 18% !important;
-        min-width: 18% !important;
-    }
-    /* Åtgärd-kolumnen (Knapparna) */
-    [data-testid="stHorizontalBlock"] > div:nth-child(4) {
-        width: 15% !important;
-        min-width: 15% !important;
-    }
-
-    /* Ta bort padding mellan kolumner för att spara plats på mobilen */
+    /* 2. Ta bort vertikal padding från kolumnerna för att få raderna närmare varandra */
     [data-testid="column"] {
-        padding: 0px 2px !important;
+        padding-top: 0px !important;
+        padding-bottom: 0px !important;
+        padding-left: 2px !important;
+        padding-right: 2px !important;
+    }
+
+    /* 3. Justera avståndet för själva blocket som håller kolumnerna */
+    [data-testid="stHorizontalBlock"] {
+        gap: 0px !important;
+        align-items: center !important;
+        margin-bottom: -10px !important; /* Minskar avståndet till nästa rad */
+    }
+
+    /* 4. Specifika bredder (samma som tidigare men optimerade) */
+    [data-testid="stHorizontalBlock"] > div:nth-child(1) { width: 35% !important; }
+    [data-testid="stHorizontalBlock"] > div:nth-child(2) { width: 20% !important; }
+    [data-testid="stHorizontalBlock"] > div:nth-child(3) { width: 20% !important; }
+    [data-testid="stHorizontalBlock"] > div:nth-child(4) { width: 25% !important; }
+
+    /* Gör texten mer kompakt */
+    div[data-testid="stMarkdownContainer"] p {
+        margin-bottom: 0px !important;
+        line-height: 1.2 !important;
     }
     
-    /* Gör texten mindre på små skärmar */
+    /* Justera linjen (st.divider/hr) */
+    hr {
+        margin-top: 2px !important;
+        margin-bottom: 2px !important;
+    }
+
     @media (max-width: 480px) {
         div[data-testid="stMarkdownContainer"] p {
             font-size: 12px !important;
@@ -137,6 +132,7 @@ st.markdown("""
     }
     </style>
 """, unsafe_allow_html=True)
+
 data = load_data()
 
 # Skapa 4 flikar
