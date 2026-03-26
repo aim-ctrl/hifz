@@ -246,7 +246,7 @@ with tab2:
     h3.markdown(f"<div style='{header_style}'>Datum</div>", unsafe_allow_html=True)
     h4.markdown(f"<div style='{header_style}'>Åtgärd</div>", unsafe_allow_html=True)
     
-    st.markdown("<hr style='margin: 0.5em 0; border: none; border-bottom: 2px solid #666;'>", unsafe_allow_html=True)
+    st.markdown("<hr style='margin: 0.1em 0; border: none; border-bottom: 2px solid #666;'>", unsafe_allow_html=True)
     
     for row in table_data:
         c1, c2, c3, c4 = st.columns(kolumn_bredder)
