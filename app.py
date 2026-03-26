@@ -265,7 +265,7 @@ with tab2:
         with c4:
             if row['tillagd']:
                 # Skapa två små kolumner inuti åtgärdskolumnen för knapparna
-                btn_col1, btn_col2 = st.columns(2)
+                none_col1,btn_col1, btn_col2,none_col2 = st.columns(4)
                 
                 with btn_col1:
                     # Knapp för att öka steg (Klar)
