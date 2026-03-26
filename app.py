@@ -78,11 +78,19 @@ st.markdown("""
     <style>
     /* 1. Generell knapp-styling */
     div[data-testid="stButton"] button {
-        padding: 0px !important;
-        min-height: 30px !important;
-        height: 30px !important;
-        width: 100% !important;
-    }
+    padding: 0px !important;
+    min-height: 30px !important; 
+    height: 30px !important;
+    width: 100% !important;
+    
+    /* HÄR ÄNDRAR DU STORLEKEN PÅ SYMBOLERNA */
+    font-size: 10px !important; 
+    
+    /* Valfritt: Centrera symbolen vertikalt */
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+}
 
     /* 2. Tvinga kolumner att ligga horisontellt även på mobil */
     [data-testid="stHorizontalBlock"] {
