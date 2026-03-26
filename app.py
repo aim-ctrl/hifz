@@ -124,41 +124,120 @@ with tab1:
 
 # --- FLIK 2: VISUELL ÖVERSIKT ---
 with tab2:
-    # Uppdaterat lexikon för att spara både steg och datum
-    tillagda_kapitel = {
-        item['namn']: {
-            'steg': int(item.get('steg', 1)),
-            'datum': item.get('nasta_repetition', '-')
-        } for item in data
-    }
+    st.write("Här har du en komplett översikt. Du kan sortera listan och snabbt markera kapitel som repeterade.")
     
-    # Uppdaterad Markdown-tabell med ny kolumn
-    md_table = "| Kapitel | Steg (0-5) | Nästa repetition |\n|---|---|---|\n"
+    # 1. Sammanställ all data för tabellen
+    table_data = []
     
-    # 1. Loopa igenom den kompletta listan med alla 114 suror
+    # Skapa ett snabbt uppslag (dictionary) för tillagda kapitel för enklare hantering
+    tillagda_dict = {item['namn']: item for item in data}
+    
+    # Lägg till de 114 standard-surorna i vår tabell-lista
     for surah in SURAH_LISTA:
-        if surah in tillagda_kapitel:
-            steg = tillagda_kapitel[surah]['steg']
-            datum = tillagda_kapitel[surah]['datum']
+        if surah in tillagda_dict:
+            item = tillagda_dict[surah]
+            table_data.append({
+                "namn": surah,
+                "steg": int(item.get('steg', 1)),
+                "datum": item.get('nasta_repetition', '-'),
+                "id": item.get('id'),
+                "tillagd": True
+            })
         else:
-            steg = 0
-            datum = "-"
+            table_data.append({
+                "namn": surah,
+                "steg": 0,
+                "datum": "-",
+                "id": None,
+                "tillagd": False
+            })
             
-        cirklar = "🟢" * steg + "⚪" * (5 - steg)
-        md_table += f"| **{surah}** | {cirklar} | {datum} |\n"
-        
-    # 2. Hitta och lägg till eventuella "egna" namn
-    egna_kapitel = [item for item in data if item['namn'] not in SURAH_LISTA]
-    if egna_kapitel:
-        md_table += "| **--- EGNA KAPITEL ---** | --- | --- |\n"
-        for item in egna_kapitel:
-            steg = int(item.get('steg', 1))
-            datum = item.get('nasta_repetition', '-')
-            cirklar = "🟢" * steg + "⚪" * (5 - steg)
-            md_table += f"| **{item['namn']}** | {cirklar} | {datum} |\n"
-            
-    st.markdown(md_table)
+    # Hitta och lägg till eventuella egna kapitel som inte finns i standardlistan
+    for item in data:
+        if item['namn'] not in SURAH_LISTA:
+            table_data.append({
+                "namn": item['namn'],
+                "steg": int(item.get('steg', 1)),
+                "datum": item.get('nasta_repetition', '-'),
+                "id": item.get('id'),
+                "tillagd": True
+            })
 
+    # 2. Skapa sorteringslogiken
+    sort_option = st.selectbox(
+        "Sortera tabellen efter:", 
+        [
+            "Kapitel (Standardordning)", 
+            "Nästa repetition (Försenade först)", 
+            "Steg (Lägst först)", 
+            "Steg (Högst först)"
+        ]
+    )
+    
+    today_str = str(datetime.date.today())
+    
+    # Sortera listan 'table_data' baserat på vad användaren valde
+    if sort_option == "Nästa repetition (Försenade först)":
+        # Sorterar på datum. Datumet "9999-99-99" används temporärt för kapitel 
+        # som inte är tillagda ännu (datum "-") så att de hamnar längst ner i listan.
+        table_data.sort(key=lambda x: x['datum'] if x['datum'] != "-" else "9999-99-99")
+    elif sort_option == "Steg (Lägst först)":
+        table_data.sort(key=lambda x: x['steg'])
+    elif sort_option == "Steg (Högst först)":
+        table_data.sort(key=lambda x: x['steg'], reverse=True)
+    # Om "Kapitel (Standardordning)" är valt gör vi ingenting, då behåller den Qurans ordning.
+
+    st.divider()
+    
+    # 3. Rita ut tabellens kolumnrubriker
+    h1, h2, h3, h4 = st.columns([3, 2, 2, 2])
+    h1.markdown("**Kapitel**")
+    h2.markdown("**Steg**")
+    h3.markdown("**Nästa repetition**")
+    h4.markdown("**Åtgärd**")
+    st.markdown("<hr style='margin: 0.5em 0; border: none; border-bottom: 2px solid #666;'>", unsafe_allow_html=True)
+    
+    # 4. Rita ut varje rad i tabellen
+    for row in table_data:
+        c1, c2, c3, c4 = st.columns([3, 2, 2, 2])
+        
+        # Kontrollera om raden ska ha en varning (tillagd OCH datumet är idag eller tidigare)
+        is_overdue = row['tillagd'] and row['datum'] <= today_str
+        
+        # Sätt upp CSS-styling. Om 'is_overdue' är sant får den en svag röd bakgrund, annars bara lite utfyllnad (padding)
+        bg_style = "background-color: rgba(255, 75, 75, 0.15); padding: 5px; border-radius: 4px;" if is_overdue else "padding: 5px;"
+        
+        # Skapa de visuella cirklarna
+        cirklar = "🟢" * row['steg'] + "⚪" * (5 - row['steg']) if row['tillagd'] else "⚪⚪⚪⚪⚪"
+        
+        with c1:
+            st.markdown(f"<div style='{bg_style}'>{row['namn']}</div>", unsafe_allow_html=True)
+        with c2:
+            st.markdown(f"<div style='{bg_style}'>{cirklar}</div>", unsafe_allow_html=True)
+        with c3:
+            # Lägg till ett utropstecken framför datumet om det är försenat för extra tydlighet
+            datum_text = f"❗ {row['datum']}" if is_overdue else row['datum']
+            st.markdown(f"<div style='{bg_style}'>{datum_text}</div>", unsafe_allow_html=True)
+        with c4:
+            if row['tillagd']:
+                # Vi använder row['id'] som 'key' så att Streamlit kan skilja knapparna åt
+                if st.button("✅ Repeterat", key=f"tab2_btn_{row['id']}", use_container_width=True):
+                    
+                    # Hitta just det här kapitlet i vår huvud-data och uppdatera dess värden
+                    for d in data:
+                        if d['id'] == row['id']:
+                            d["steg"] = min(d["steg"] + 1, 5)
+                            d["nasta_repetition"] = str(calculate_next_date(d["steg"]))
+                            break
+                            
+                    # Spara till databasen och ladda om sidan för att visa ändringarna
+                    save_data(data)
+                    st.rerun()
+            else:
+                st.markdown("<div style='padding: 5px; color: #888; font-size: 0.8em;'>Ej tillagd i tracker</div>", unsafe_allow_html=True)
+        
+        # Rita en tunn linje för att separera raderna
+        st.markdown("<hr style='margin: 0.1em 0; border: none; border-bottom: 1px solid #ddd;'>", unsafe_allow_html=True)
 # --- FLIK 3: HANTERA KAPITEL ---
 with tab3:
     if not data:
