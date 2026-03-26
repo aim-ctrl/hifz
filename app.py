@@ -97,8 +97,8 @@ st.markdown("""
     
     /* Kapitel-kolumnen (Ge den mer plats) */
     [data-testid="stHorizontalBlock"] > div:nth-child(1) {
-        width: 40% !important;
-        min-width: 40% !important;
+        width: 20% !important;
+        min-width: 20% !important;
     }
     /* Steg-kolumnen (Cirklarna) */
     [data-testid="stHorizontalBlock"] > div:nth-child(2) {
