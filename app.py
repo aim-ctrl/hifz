@@ -86,7 +86,7 @@ st.markdown("""
         padding: -5px !important;
         min-height: 15px !important; 
         height: 15px !important;
-        width: 100% !important;
+        width: 30% !important;
         font-size: 5px !important; 
         display: flex !important;
         align-items: center !important;
