@@ -136,7 +136,6 @@ with tab1:
             # Tunn linje
             st.markdown("<hr style='margin: 0.2em 0; border: none; border-bottom: 1px solid #ddd;'>", unsafe_allow_html=True)
 
-
 # --- FLIK 2: VISUELL ÖVERSIKT ---
 with tab2:
     st.write("Här har du en komplett översikt. Du kan sortera listan och snabbt markera kapitel som repeterade.")
@@ -195,17 +194,23 @@ with tab2:
     st.divider()
     
     h1, h2, h3, h4 = st.columns([4, 2, 2, 1.5])
-    h1.markdown("**Kapitel**")
-    h2.markdown("**Steg**")
-    h3.markdown("**Nästa repetition**")
-    h4.markdown("**Åtgärd**")
+    
+    # Skapa en gemensam stil för rubrikerna för att matcha den nya storleken
+    header_style = "font-size: 0.85em; font-weight: bold; padding: 2px;"
+    h1.markdown(f"<div style='{header_style}'>Kapitel</div>", unsafe_allow_html=True)
+    h2.markdown(f"<div style='{header_style}'>Steg</div>", unsafe_allow_html=True)
+    h3.markdown(f"<div style='{header_style}'>Nästa repetition</div>", unsafe_allow_html=True)
+    h4.markdown(f"<div style='{header_style}'>Åtgärd</div>", unsafe_allow_html=True)
+    
     st.markdown("<hr style='margin: 0.5em 0; border: none; border-bottom: 2px solid #666;'>", unsafe_allow_html=True)
     
     for row in table_data:
         c1, c2, c3, c4 = st.columns([4, 2, 2, 1.5])
         
         is_overdue = row['tillagd'] and row['datum'] <= today_str
-        bg_style = "background-color: rgba(255, 75, 75, 0.15); padding: 5px; border-radius: 4px;" if is_overdue else "padding: 5px;"
+        
+        # HÄR ÄR ÄNDRINGEN: Mindre padding (2px) och mindre fontstorlek (0.85em)
+        bg_style = "background-color: rgba(255, 75, 75, 0.15); padding: 2px; font-size: 0.85em; border-radius: 4px;" if is_overdue else "padding: 2px; font-size: 0.85em;"
         
         cirklar = "🟢" * row['steg'] + "⚪" * (5 - row['steg']) if row['tillagd'] else "⚪⚪⚪⚪⚪"
         
@@ -227,11 +232,10 @@ with tab2:
                     save_data(data)
                     st.rerun()
             else:
-                st.markdown("<div style='padding: 5px; color: #888; font-size: 0.8em;'>Ej tillagd</div>", unsafe_allow_html=True)
+                # Uppdaterade även "Ej tillagd"-texten så den matchar
+                st.markdown("<div style='padding: 2px; color: #888; font-size: 0.85em;'>Ej tillagd</div>", unsafe_allow_html=True)
         
         st.markdown("<hr style='margin: 0.1em 0; border: none; border-bottom: 1px solid #ddd;'>", unsafe_allow_html=True)
-
-
 # --- FLIK 3: HANTERA KAPITEL ---
 with tab3:
     if not data:
