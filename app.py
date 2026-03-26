@@ -218,7 +218,7 @@ with tab2:
             st.markdown(f"<div style='{bg_style}'>{datum_text}</div>", unsafe_allow_html=True)
         with c4:
             if row['tillagd']:
-                if st.button("✅ Repeterat", key=f"tab2_btn_{row['id']}"):
+                if st.button("Repeterat", key=f"tab2_btn_{row['id']}"):
                     for d in data:
                         if d['id'] == row['id']:
                             d["steg"] = min(d["steg"] + 1, 5)
