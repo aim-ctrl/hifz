@@ -243,7 +243,7 @@ with tab2:
     header_style = "font-size: 0.5em; font-weight: bold; padding: 2px;"
     h1.markdown(f"<div style='{header_style}'>Kapitel</div>", unsafe_allow_html=True)
     h2.markdown(f"<div style='{header_style}'>Steg</div>", unsafe_allow_html=True)
-    h3.markdown(f"<div style='{header_style}'>Repetitionsdatum</div>", unsafe_allow_html=True)
+    h3.markdown(f"<div style='{header_style}'>Datum</div>", unsafe_allow_html=True)
     h4.markdown(f"<div style='{header_style}'>Åtgärd</div>", unsafe_allow_html=True)
     
     st.markdown("<hr style='margin: 0.5em 0; border: none; border-bottom: 2px solid #666;'>", unsafe_allow_html=True)
