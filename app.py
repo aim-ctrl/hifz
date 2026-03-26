@@ -219,7 +219,7 @@ with tab2:
         "Sortera tabellen efter:", 
         [
             "Kapitel (Standardordning)", 
-            "Nästa repetition (Försenade först)", 
+            "Datum (Försenade först)", 
             "Steg (Lägst först)", 
             "Steg (Högst först)"
         ]
@@ -227,7 +227,7 @@ with tab2:
     
     today_str = str(datetime.date.today())
     
-    if sort_option == "Nästa repetition (Försenade först)":
+    if sort_option == "Datum (Försenade först)":
         table_data.sort(key=lambda x: x['datum'] if x['datum'] != "-" else "9999-99-99")
     elif sort_option == "Steg (Lägst först)":
         table_data.sort(key=lambda x: x['steg'])
@@ -252,7 +252,7 @@ with tab2:
         c1, c2, c3, c4 = st.columns(kolumn_bredder)
         
         is_overdue = row['tillagd'] and row['datum'] <= today_str
-        bg_style = "background-color: rgba(255, 75, 75, 0.15); padding: 2px; font-size: 0.5em; border-radius: 4px;" if is_overdue else "padding: 2px; font-size: 0.85em;"
+        bg_style = "background-color: rgba(255, 75, 75, 0.15); padding: 0px; font-size: 0.5em; border-radius: 4px;" if is_overdue else "padding: 0px; font-size: 0.5em;"
         cirklar = "🟢" * row['steg'] + "⚪" * (5 - row['steg']) if row['tillagd'] else "⚪⚪⚪⚪⚪"
         
         with c1:
