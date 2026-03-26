@@ -79,8 +79,8 @@ st.markdown("""
     /* Tvinga knappen att bli lägre och ha mindre utfyllnad */
     div[data-testid="stButton"] button {
         padding: 0px 10px !important;
-        min-height: 32px !important;
-        height: 32px !important;
+        min-height: 16px !important;
+        height: 16px !important;
     }
     /* Ta bort Streamlits inbyggda marginal under knappen för att minska luft mellan rader */
     div[data-testid="stButton"] {
