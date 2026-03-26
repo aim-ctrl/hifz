@@ -85,7 +85,7 @@ st.markdown("""
     div[data-testid="stButton"] button {
         padding: 0px !important; 
         height: 20px !important;
-        width: 20px !important;
+        width: 100% !important;
         font-size: 5px !important; 
         display: flex !important;
         align-items: center !important;
