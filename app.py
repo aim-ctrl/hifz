@@ -84,8 +84,8 @@ st.markdown("""
     /* 1. Behåll din existerande knapp-styling */
     div[data-testid="stButton"] button {
         padding: 0px !important;
-        min-height: 20px !important; 
-        height: 20px !important;
+        min-height: 15px !important; 
+        height: 15px !important;
         width: 100% !important;
         font-size: 10px !important; 
         display: flex !important;
