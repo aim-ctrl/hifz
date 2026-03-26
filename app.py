@@ -102,8 +102,8 @@ st.markdown("""
     }
     /* Steg-kolumnen (Cirklarna) */
     [data-testid="stHorizontalBlock"] > div:nth-child(2) {
-        width: 20% !important;
-        min-width: 20% !important;
+        width: 17% !important;
+        min-width: 17% !important;
     }
     /* Datum-kolumnen */
     [data-testid="stHorizontalBlock"] > div:nth-child(3) {
@@ -132,7 +132,7 @@ st.markdown("""
 data = load_data()
 
 # Skapa 4 flikar
-tab1, tab2, tab3, tab4 = st.tabs(["Repetitioner", "Visuell Översikt", "Hantera Kapitel", "Lägg till nytt"])
+tab1, tab2, tab3, tab4 = st.tabs(["Repetitioner", "Översikt", "Hantera Kapitel", "Lägg till nytt"])
 
 # --- FLIK 1: DAGENS REPETITIONER ---
 with tab1:
@@ -178,8 +178,6 @@ with tab1:
 
 # --- FLIK 2: VISUELL ÖVERSIKT ---
 with tab2:
-    st.write("Här har du en komplett översikt. Du kan sortera listan och snabbt markera kapitel som repeterade eller börja om.")
-    
     table_data = []
     tillagda_dict = {item['namn']: item for item in data}
     
