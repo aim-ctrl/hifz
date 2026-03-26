@@ -178,19 +178,16 @@ with tab2:
     
     # Sortera listan 'table_data' baserat på vad användaren valde
     if sort_option == "Nästa repetition (Försenade först)":
-        # Sorterar på datum. Datumet "9999-99-99" används temporärt för kapitel 
-        # som inte är tillagda ännu (datum "-") så att de hamnar längst ner i listan.
         table_data.sort(key=lambda x: x['datum'] if x['datum'] != "-" else "9999-99-99")
     elif sort_option == "Steg (Lägst först)":
         table_data.sort(key=lambda x: x['steg'])
     elif sort_option == "Steg (Högst först)":
         table_data.sort(key=lambda x: x['steg'], reverse=True)
-    # Om "Kapitel (Standardordning)" är valt gör vi ingenting, då behåller den Qurans ordning.
 
     st.divider()
     
-    # 3. Rita ut tabellens kolumnrubriker
-    h1, h2, h3, h4 = st.columns([3, 2, 2, 2])
+    # 3. Rita ut tabellens kolumnrubriker (Notera de nya proportionerna [4, 2, 2, 1.5])
+    h1, h2, h3, h4 = st.columns([4, 2, 2, 1.5])
     h1.markdown("**Kapitel**")
     h2.markdown("**Steg**")
     h3.markdown("**Nästa repetition**")
@@ -199,12 +196,13 @@ with tab2:
     
     # 4. Rita ut varje rad i tabellen
     for row in table_data:
-        c1, c2, c3, c4 = st.columns([3, 2, 2, 2])
+        # Samma proportioner som i rubrikerna
+        c1, c2, c3, c4 = st.columns([4, 2, 2, 1.5])
         
-        # Kontrollera om raden ska ha en varning (tillagd OCH datumet är idag eller tidigare)
+        # Kontrollera om raden ska ha en varning
         is_overdue = row['tillagd'] and row['datum'] <= today_str
         
-        # Sätt upp CSS-styling. Om 'is_overdue' är sant får den en svag röd bakgrund, annars bara lite utfyllnad (padding)
+        # Sätt upp CSS-styling
         bg_style = "background-color: rgba(255, 75, 75, 0.15); padding: 5px; border-radius: 4px;" if is_overdue else "padding: 5px;"
         
         # Skapa de visuella cirklarna
@@ -215,22 +213,19 @@ with tab2:
         with c2:
             st.markdown(f"<div style='{bg_style}'>{cirklar}</div>", unsafe_allow_html=True)
         with c3:
-            # Lägg till ett utropstecken framför datumet om det är försenat för extra tydlighet
             datum_text = f"❗ {row['datum']}" if is_overdue else row['datum']
             st.markdown(f"<div style='{bg_style}'>{datum_text}</div>", unsafe_allow_html=True)
         with c4:
             if row['tillagd']:
-                # Vi använder row['id'] som 'key' så att Streamlit kan skilja knapparna åt
-                if st.button("✅ Repeterat", key=f"tab2_btn_{row['id']}", use_container_width=True):
+                # HÄR ÄR ÄNDRINGEN: Vi har tagit bort use_container_width=True
+                if st.button("✅ Repeterat", key=f"tab2_btn_{row['id']}"):
                     
-                    # Hitta just det här kapitlet i vår huvud-data och uppdatera dess värden
                     for d in data:
                         if d['id'] == row['id']:
                             d["steg"] = min(d["steg"] + 1, 5)
                             d["nasta_repetition"] = str(calculate_next_date(d["steg"]))
                             break
                             
-                    # Spara till databasen och ladda om sidan för att visa ändringarna
                     save_data(data)
                     st.rerun()
             else:
@@ -238,6 +233,7 @@ with tab2:
         
         # Rita en tunn linje för att separera raderna
         st.markdown("<hr style='margin: 0.1em 0; border: none; border-bottom: 1px solid #ddd;'>", unsafe_allow_html=True)
+        
 # --- FLIK 3: HANTERA KAPITEL ---
 with tab3:
     if not data:
