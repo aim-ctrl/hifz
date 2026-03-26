@@ -115,8 +115,8 @@ st.markdown("""
     }
     /* Datum-kolumnen */
     [data-testid="stHorizontalBlock"] > div:nth-child(3) {
-        width: 25% !important;
-        min-width: 25% !important;
+        width: 18% !important;
+        min-width: 18% !important;
     }
     /* Åtgärd-kolumnen (Knapparna) */
     [data-testid="stHorizontalBlock"] > div:nth-child(4) {
