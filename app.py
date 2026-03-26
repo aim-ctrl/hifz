@@ -76,53 +76,59 @@ def calculate_next_date(current_step):
 # CSS för anpassning av knappar, mobilvy och exakta pixelbredder
 st.markdown("""
     <style>
-    /* 1. Tvinga knappen att bli lägre och ha mindre utfyllnad */
+    /* 1. Generell knapp-styling */
     div[data-testid="stButton"] button {
-        padding: 0px 0px !important;
-        min-height: 24px !important;
-        height: 24px !important;
-    }
-    
-    /* 2. Ta bort Streamlits inbyggda marginal under knappar */
-    div[data-testid="stButton"] {
-        margin-bottom: -0px !important;
-    }
-    
-    /* 3. MOBILANPASSNING: Tvinga rader att stanna horisontellt */
-    @media (max-width: 768px) {
-        div[data-testid="stHorizontalBlock"] {
-            flex-wrap: nowrap !important;
-            overflow-x: auto !important; /* Låter användaren scrolla i sidled om skärmen är extremt smal */
-        }
-        div[data-testid="column"] {
-            min-width: 0 !important;
-        }
+        padding: 0px !important;
+        min-height: 30px !important;
+        height: 30px !important;
+        width: 100% !important;
     }
 
-    /* 4. PIXELBREDD FÖR FLIK 2: Riktar bara in sig på rader med exakt 4 kolumner */
-    /* Kolumn 1: Kapitel */
-    div[data-testid="stHorizontalBlock"]:has(> div[data-testid="column"]:nth-child(4):last-child) > div[data-testid="column"]:nth-child(1) {
-        width: 10px !important;
-        flex: none !important;
+    /* 2. Tvinga kolumner att ligga horisontellt även på mobil */
+    [data-testid="stHorizontalBlock"] {
+        display: flex !important;
+        flex-direction: row !important;
+        flex-wrap: nowrap !important;
+        align-items: center !important;
     }
-    /* Kolumn 2: Steg */
-    div[data-testid="stHorizontalBlock"]:has(> div[data-testid="column"]:nth-child(4):last-child) > div[data-testid="column"]:nth-child(2) {
-        width: 70px !important;
-        flex: none !important;
+
+    /* 3. Definiera exakta bredder för de 4 kolumnerna i översikten */
+    /* Vi använder nth-child för att pricka rätt kolumn i raden */
+    
+    /* Kapitel-kolumnen (Ge den mer plats) */
+    [data-testid="stHorizontalBlock"] > div:nth-child(1) {
+        width: 40% !important;
+        min-width: 40% !important;
     }
-    /* Kolumn 3: Nästa repetition */
-    div[data-testid="stHorizontalBlock"]:has(> div[data-testid="column"]:nth-child(4):last-child) > div[data-testid="column"]:nth-child(3) {
-        width: 100px !important;
-        flex: none !important;
+    /* Steg-kolumnen (Cirklarna) */
+    [data-testid="stHorizontalBlock"] > div:nth-child(2) {
+        width: 20% !important;
+        min-width: 20% !important;
     }
-    /* Kolumn 4: Åtgärd (Knapparna) */
-    div[data-testid="stHorizontalBlock"]:has(> div[data-testid="column"]:nth-child(4):last-child) > div[data-testid="column"]:nth-child(4) {
-        width: 80px !important;
-        flex: none !important;
+    /* Datum-kolumnen */
+    [data-testid="stHorizontalBlock"] > div:nth-child(3) {
+        width: 25% !important;
+        min-width: 25% !important;
+    }
+    /* Åtgärd-kolumnen (Knapparna) */
+    [data-testid="stHorizontalBlock"] > div:nth-child(4) {
+        width: 15% !important;
+        min-width: 15% !important;
+    }
+
+    /* Ta bort padding mellan kolumner för att spara plats på mobilen */
+    [data-testid="column"] {
+        padding: 0px 2px !important;
+    }
+    
+    /* Gör texten mindre på små skärmar */
+    @media (max-width: 480px) {
+        div[data-testid="stMarkdownContainer"] p {
+            font-size: 12px !important;
+        }
     }
     </style>
 """, unsafe_allow_html=True)
-
 data = load_data()
 
 # Skapa 4 flikar
