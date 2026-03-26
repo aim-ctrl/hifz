@@ -85,7 +85,7 @@ st.markdown("""
     div[data-testid="stButton"] button {
         padding: 0px !important;
         min-height: 5px !important; 
-        height: 5px !important;
+        height: 15px !important;
         width: 100% !important;
         font-size: 5px !important; 
         display: flex !important;
