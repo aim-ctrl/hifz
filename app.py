@@ -85,7 +85,7 @@ st.markdown("""
     
     /* 2. Ta bort Streamlits inbyggda marginal under knappar */
     div[data-testid="stButton"] {
-        margin-bottom: -15px !important;
+        margin-bottom: -0px !important;
     }
     
     /* 3. MOBILANPASSNING: Tvinga rader att stanna horisontellt */
