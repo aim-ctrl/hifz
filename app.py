@@ -112,7 +112,10 @@ st.markdown("""
 
     /* 4. TA BORT VERTICAL PADDING I CELLERNA (Detta fixar din fråga) */
     [data-testid="column"] {
-        padding: 0px 2px !important; /* 0px top/bottom, 2px left/right */
+        padding-top: -2px; !important
+        padding-bottom: -2px; !important
+        padding-left: 2px; !important
+        padding-right: 2px; !important
     }
     
     /* Justera textens marginaler inuti cellerna */
