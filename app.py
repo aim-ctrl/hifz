@@ -4,12 +4,12 @@ import datetime
 import uuid
 
 # --- KONFIGURATION & SECRETS ---
+# Vi hämtar nu bara databasnycklarna och ignorerar PIN-koden
 try:
     BIN_ID = st.secrets["JSONBIN_BIN_ID"]
     API_KEY = st.secrets["JSONBIN_API_KEY"]
-    PIN_KOD = st.secrets["PIN_KOD"]
 except KeyError:
-    st.error("Saknar secrets! Se till att konfigurera JSONBIN_BIN_ID, JSONBIN_API_KEY och PIN_KOD i Streamlit Cloud.")
+    st.error("Saknar secrets! Se till att konfigurera JSONBIN_BIN_ID och JSONBIN_API_KEY i Streamlit Cloud.")
     st.stop()
 
 URL = f"https://api.jsonbin.io/v3/b/{BIN_ID}"
@@ -71,23 +71,9 @@ def calculate_next_date(current_step):
     days = intervals.get(current_step, 1)
     return today + datetime.timedelta(days=days)
 
-# --- SESSION STATE FÖR INLOGGNING ---
-if "logged_in" not in st.session_state:
-    st.session_state.logged_in = False
-
-# --- INLOGGNINGSSKÄRM ---
-if not st.session_state.logged_in:
-    st.title("🔒 Hifz Tracker Inloggning")
-    pin_input = st.text_input("Ange PIN-kod", type="password")
-    if st.button("Logga in"):
-        if pin_input == PIN_KOD:
-            st.session_state.logged_in = True
-            st.rerun()
-        else:
-            st.error("Fel PIN-kod.")
-    st.stop()
 
 # --- HUVUDAPP ---
+# Appen laddas nu direkt utan någon inloggningsskärm
 data = load_data()
 
 # Skapa 4 flikar
