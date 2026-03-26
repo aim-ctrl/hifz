@@ -150,7 +150,7 @@ with tab1:
 
     sort_option = st.selectbox(
         "Sortera tabellen efter:", 
-        ["Kapitel (Standardordning)", "Datum (Försenade först)", "Steg (Lägst först)", "Steg (Högst först)"]
+        ["Datum (Försenade först)", "Kapitel (Standardordning)", "Steg (Lägst först)", "Steg (Högst först)"]
     )
     
     today_str = str(datetime.date.today())
