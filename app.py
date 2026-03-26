@@ -78,7 +78,7 @@ st.markdown("""
     <style>
     /* 1. Tvinga knappen att bli lägre och ha mindre utfyllnad */
     div[data-testid="stButton"] button {
-        padding: 0px 10px !important;
+        padding: 0px 0px !important;
         min-height: 24px !important;
         height: 24px !important;
     }
@@ -102,7 +102,7 @@ st.markdown("""
     /* 4. PIXELBREDD FÖR FLIK 2: Riktar bara in sig på rader med exakt 4 kolumner */
     /* Kolumn 1: Kapitel */
     div[data-testid="stHorizontalBlock"]:has(> div[data-testid="column"]:nth-child(4):last-child) > div[data-testid="column"]:nth-child(1) {
-        width: 130px !important;
+        width: 30px !important;
         flex: none !important;
     }
     /* Kolumn 2: Steg */
