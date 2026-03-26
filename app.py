@@ -85,7 +85,7 @@ st.markdown("""
     div[data-testid="stButton"] button {
         padding: -5px !important;
         min-height: 5px !important; 
-        height: 100% !important;
+        height: 5px !important;
         width: 100% !important;
         font-size: 5px !important; 
         display: flex !important;
@@ -112,10 +112,10 @@ st.markdown("""
 
     /* 4. TA BORT VERTICAL PADDING I CELLERNA (Detta fixar din fråga) */
     [data-testid="column"] {
-        padding-top: -2px; !important
-        padding-bottom: -2px; !important
-        padding-left: 2px; !important
-        padding-right: 2px; !important
+        padding-top: -2px !important;
+        padding-bottom: -2px; !important;
+        padding-left: 2px !important;
+        padding-right: 2px !important;
     }
     
     /* Justera textens marginaler inuti cellerna */
