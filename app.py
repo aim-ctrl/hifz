@@ -79,8 +79,8 @@ st.markdown("""
     /* 1. Generell knapp-styling */
     div[data-testid="stButton"] button {
     padding: 0px !important;
-    min-height: 30px !important; 
-    height: 30px !important;
+    min-height: 20px !important; 
+    height: 20px !important;
     width: 100% !important;
     
     /* HÄR ÄNDRAR DU STORLEKEN PÅ SYMBOLERNA */
