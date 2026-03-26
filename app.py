@@ -280,7 +280,7 @@ with tab2:
                 
                 with btn_col2:
                     # Knapp för att börja om (Misslyckades)
-                    if st.button("❌", key=f"tab2_fail_{row['id']}", help="Misslyckades (Börja om på steg 1)"):
+                    if st.button("X", key=f"tab2_fail_{row['id']}", help="Misslyckades (Börja om på steg 1)"):
                         for d in data:
                             if d['id'] == row['id']:
                                 d["steg"] = 1
