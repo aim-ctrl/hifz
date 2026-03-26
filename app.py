@@ -73,29 +73,52 @@ def calculate_next_date(current_step):
 
 # --- HUVUDAPP ---
 
-# CSS för att göra knappar och rader tajtare över hela appen, samt förhindra vertikal stapling på mobiler
+# CSS för anpassning av knappar, mobilvy och exakta pixelbredder
 st.markdown("""
     <style>
-    /* Tvinga knappen att bli lägre och ha mindre utfyllnad */
+    /* 1. Tvinga knappen att bli lägre och ha mindre utfyllnad */
     div[data-testid="stButton"] button {
-        padding: 0px 0px !important;
+        padding: 0px 10px !important;
         min-height: 24px !important;
         height: 24px !important;
     }
-    /* Ta bort Streamlits inbyggda marginal under knappen för att minska luft mellan rader */
+    
+    /* 2. Ta bort Streamlits inbyggda marginal under knappar */
     div[data-testid="stButton"] {
         margin-bottom: -15px !important;
     }
     
-    /* MOBILANPASSNING: Tvinga tabellrader/kolumner att stanna horisontellt på små skärmar */
+    /* 3. MOBILANPASSNING: Tvinga rader att stanna horisontellt */
     @media (max-width: 768px) {
         div[data-testid="stHorizontalBlock"] {
             flex-wrap: nowrap !important;
+            overflow-x: auto !important; /* Låter användaren scrolla i sidled om skärmen är extremt smal */
         }
         div[data-testid="column"] {
             min-width: 0 !important;
-            /* Tillåter kolumnerna att krympa och få plats bredvid varandra */
         }
+    }
+
+    /* 4. PIXELBREDD FÖR FLIK 2: Riktar bara in sig på rader med exakt 4 kolumner */
+    /* Kolumn 1: Kapitel */
+    div[data-testid="stHorizontalBlock"]:has(> div[data-testid="column"]:nth-child(4):last-child) > div[data-testid="column"]:nth-child(1) {
+        width: 130px !important;
+        flex: none !important;
+    }
+    /* Kolumn 2: Steg */
+    div[data-testid="stHorizontalBlock"]:has(> div[data-testid="column"]:nth-child(4):last-child) > div[data-testid="column"]:nth-child(2) {
+        width: 70px !important;
+        flex: none !important;
+    }
+    /* Kolumn 3: Nästa repetition */
+    div[data-testid="stHorizontalBlock"]:has(> div[data-testid="column"]:nth-child(4):last-child) > div[data-testid="column"]:nth-child(3) {
+        width: 100px !important;
+        flex: none !important;
+    }
+    /* Kolumn 4: Åtgärd (Knapparna) */
+    div[data-testid="stHorizontalBlock"]:has(> div[data-testid="column"]:nth-child(4):last-child) > div[data-testid="column"]:nth-child(4) {
+        width: 80px !important;
+        flex: none !important;
     }
     </style>
 """, unsafe_allow_html=True)
