@@ -77,54 +77,52 @@ def calculate_next_date(current_step):
 # --- HUVUDAPP ---
 
 # CSS för anpassning av knappar, mobilvy och exakta pixelbredder
+# --- HUVUDAPP ---
+
 st.markdown("""
     <style>
-    /* 1. Generell knapp-styling - minskad höjd */
+    /* 1. Behåll din existerande knapp-styling */
     div[data-testid="stButton"] button {
         padding: 0px !important;
-        min-height: 24px !important; 
-        height: 24px !important;
+        min-height: 20px !important; 
+        height: 20px !important;
         width: 100% !important;
-        font-size: 14px !important; 
+        font-size: 10px !important; 
         display: flex !important;
         align-items: center !important;
         justify-content: center !important;
-        margin-top: 0px !important;
     }
 
-    /* 2. Ta bort vertikal padding från kolumnerna för att få raderna närmare varandra */
-    [data-testid="column"] {
-        padding-top: 0px !important;
-        padding-bottom: 0px !important;
-        padding-left: 2px !important;
-        padding-right: 2px !important;
-    }
-
-    /* 3. Justera avståndet för själva blocket som håller kolumnerna */
+    /* 2. Tvinga horisontell layout på mobil */
     [data-testid="stHorizontalBlock"] {
-        gap: 0px !important;
+        display: flex !important;
+        flex-direction: row !important;
+        flex-wrap: nowrap !important;
         align-items: center !important;
-        margin-bottom: -10px !important; /* Minskar avståndet till nästa rad */
+        /* HÄR MINSKAR VI MELLANRUMMET MELLAN RADERNA */
+        gap: 0px !important; 
+        margin-bottom: -8px !important; 
     }
 
-    /* 4. Specifika bredder (samma som tidigare men optimerade) */
-    [data-testid="stHorizontalBlock"] > div:nth-child(1) { width: 35% !important; }
-    [data-testid="stHorizontalBlock"] > div:nth-child(2) { width: 20% !important; }
-    [data-testid="stHorizontalBlock"] > div:nth-child(3) { width: 20% !important; }
-    [data-testid="stHorizontalBlock"] > div:nth-child(4) { width: 25% !important; }
+    /* 3. Dina exakta bredder från tidigare */
+    [data-testid="stHorizontalBlock"] > div:nth-child(1) { width: 20% !important; min-width: 20% !important; }
+    [data-testid="stHorizontalBlock"] > div:nth-child(2) { width: 17% !important; min-width: 17% !important; }
+    [data-testid="stHorizontalBlock"] > div:nth-child(3) { width: 18% !important; min-width: 18% !important; }
+    [data-testid="stHorizontalBlock"] > div:nth-child(4) { width: 15% !important; min-width: 15% !important; }
 
-    /* Gör texten mer kompakt */
-    div[data-testid="stMarkdownContainer"] p {
-        margin-bottom: 0px !important;
-        line-height: 1.2 !important;
+    /* 4. TA BORT VERTICAL PADDING I CELLERNA (Detta fixar din fråga) */
+    [data-testid="column"] {
+        padding: 0px 2px !important; /* 0px top/bottom, 2px left/right */
     }
     
-    /* Justera linjen (st.divider/hr) */
-    hr {
-        margin-top: 2px !important;
-        margin-bottom: 2px !important;
+    /* Justera textens marginaler inuti cellerna */
+    div[data-testid="stMarkdownContainer"] p {
+        margin-bottom: 0px !important;
+        padding-top: 0px !important;
+        padding-bottom: 0px !important;
     }
 
+    /* Behåll mobil-textstorleken */
     @media (max-width: 480px) {
         div[data-testid="stMarkdownContainer"] p {
             font-size: 12px !important;
