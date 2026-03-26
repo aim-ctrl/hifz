@@ -73,7 +73,7 @@ def calculate_next_date(current_step):
 
 # --- HUVUDAPP ---
 
-# CSS för att göra knappar och rader tajtare över hela appen
+# CSS för att göra knappar och rader tajtare över hela appen, samt förhindra vertikal stapling på mobiler
 st.markdown("""
     <style>
     /* Tvinga knappen att bli lägre och ha mindre utfyllnad */
@@ -85,6 +85,17 @@ st.markdown("""
     /* Ta bort Streamlits inbyggda marginal under knappen för att minska luft mellan rader */
     div[data-testid="stButton"] {
         margin-bottom: -15px !important;
+    }
+    
+    /* MOBILANPASSNING: Tvinga tabellrader/kolumner att stanna horisontellt på små skärmar */
+    @media (max-width: 768px) {
+        div[data-testid="stHorizontalBlock"] {
+            flex-wrap: nowrap !important;
+        }
+        div[data-testid="column"] {
+            min-width: 0 !important;
+            /* Tillåter kolumnerna att krympa och få plats bredvid varandra */
+        }
     }
     </style>
 """, unsafe_allow_html=True)
