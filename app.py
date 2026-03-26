@@ -138,7 +138,7 @@ with tab1:
 
 # --- FLIK 2: VISUELL ÖVERSIKT ---
 with tab2:
-    st.write("Här har du en komplett översikt. Du kan sortera listan och snabbt markera kapitel som repeterade.")
+    st.write("Här har du en komplett översikt. Du kan sortera listan och snabbt markera kapitel som repeterade eller börja om.")
     
     table_data = []
     tillagda_dict = {item['namn']: item for item in data}
@@ -193,9 +193,10 @@ with tab2:
 
     st.divider()
     
-    h1, h2, h3, h4 = st.columns([4, 2, 2, 1.5])
+    # Justerade kolumnbredder för att ge plats åt två knappar i sista kolumnen
+    kolumn_bredder = [3.5, 2, 2, 2.5]
+    h1, h2, h3, h4 = st.columns(kolumn_bredder)
     
-    # Skapa en gemensam stil för rubrikerna för att matcha den nya storleken
     header_style = "font-size: 0.85em; font-weight: bold; padding: 2px;"
     h1.markdown(f"<div style='{header_style}'>Kapitel</div>", unsafe_allow_html=True)
     h2.markdown(f"<div style='{header_style}'>Steg</div>", unsafe_allow_html=True)
@@ -205,13 +206,10 @@ with tab2:
     st.markdown("<hr style='margin: 0.5em 0; border: none; border-bottom: 2px solid #666;'>", unsafe_allow_html=True)
     
     for row in table_data:
-        c1, c2, c3, c4 = st.columns([4, 2, 2, 1.5])
+        c1, c2, c3, c4 = st.columns(kolumn_bredder)
         
         is_overdue = row['tillagd'] and row['datum'] <= today_str
-        
-        # HÄR ÄR ÄNDRINGEN: Mindre padding (2px) och mindre fontstorlek (0.85em)
         bg_style = "background-color: rgba(255, 75, 75, 0.15); padding: 2px; font-size: 0.85em; border-radius: 4px;" if is_overdue else "padding: 2px; font-size: 0.85em;"
-        
         cirklar = "🟢" * row['steg'] + "⚪" * (5 - row['steg']) if row['tillagd'] else "⚪⚪⚪⚪⚪"
         
         with c1:
@@ -223,19 +221,35 @@ with tab2:
             st.markdown(f"<div style='{bg_style}'>{datum_text}</div>", unsafe_allow_html=True)
         with c4:
             if row['tillagd']:
-                if st.button("Repeterat", key=f"tab2_btn_{row['id']}"):
-                    for d in data:
-                        if d['id'] == row['id']:
-                            d["steg"] = min(d["steg"] + 1, 5)
-                            d["nasta_repetition"] = str(calculate_next_date(d["steg"]))
-                            break
-                    save_data(data)
-                    st.rerun()
+                # Skapa två små kolumner inuti åtgärdskolumnen för knapparna
+                btn_col1, btn_col2 = st.columns(2)
+                
+                with btn_col1:
+                    # Knapp för att öka steg (Klar)
+                    if st.button("✅", key=f"tab2_pass_{row['id']}", help="Klar (Öka steg)"):
+                        for d in data:
+                            if d['id'] == row['id']:
+                                d["steg"] = min(d["steg"] + 1, 5)
+                                d["nasta_repetition"] = str(calculate_next_date(d["steg"]))
+                                break
+                        save_data(data)
+                        st.rerun()
+                
+                with btn_col2:
+                    # Knapp för att börja om (Misslyckades)
+                    if st.button("❌", key=f"tab2_fail_{row['id']}", help="Misslyckades (Börja om på steg 1)"):
+                        for d in data:
+                            if d['id'] == row['id']:
+                                d["steg"] = 1
+                                d["nasta_repetition"] = str(datetime.date.today())
+                                break
+                        save_data(data)
+                        st.rerun()
             else:
-                # Uppdaterade även "Ej tillagd"-texten så den matchar
                 st.markdown("<div style='padding: 2px; color: #888; font-size: 0.85em;'>Ej tillagd</div>", unsafe_allow_html=True)
         
         st.markdown("<hr style='margin: 0.1em 0; border: none; border-bottom: 1px solid #ddd;'>", unsafe_allow_html=True)
+        
 # --- FLIK 3: HANTERA KAPITEL ---
 with tab3:
     if not data:
