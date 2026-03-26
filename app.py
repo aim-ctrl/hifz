@@ -240,7 +240,7 @@ with tab2:
     kolumn_bredder = [3.5, 2, 2, 2.5]
     h1, h2, h3, h4 = st.columns(kolumn_bredder)
     
-    header_style = "font-size: 0.85em; font-weight: bold; padding: 2px;"
+    header_style = "font-size: 0.5em; font-weight: bold; padding: 2px;"
     h1.markdown(f"<div style='{header_style}'>Kapitel</div>", unsafe_allow_html=True)
     h2.markdown(f"<div style='{header_style}'>Steg</div>", unsafe_allow_html=True)
     h3.markdown(f"<div style='{header_style}'>Repetitionsdatum</div>", unsafe_allow_html=True)
