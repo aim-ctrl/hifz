@@ -40,7 +40,6 @@ raw_surah_names = [
     "Al-Kafirun", "An-Nasr", "Al-Masad", "Al-Ikhlas", "Al-Falaq", "An-Nas"
 ]
 
-# Skapar den formaterade listan med nummer före namnet
 SURAH_LISTA = [f"{i}. {name}" for i, name in enumerate(raw_surah_names, 1)]
 
 # --- DATABASFUNKTIONER ---
@@ -70,18 +69,9 @@ def calculate_next_date(current_step):
     days = intervals.get(current_step, 1)
     return today + datetime.timedelta(days=days)
 
-
-# --- HUVUDAPP ---
-
-# CSS för anpassning av knappar, mobilvy och exakta pixelbredder
-# --- HUVUDAPP ---
-
-# CSS för anpassning av knappar, mobilvy och exakta pixelbredder
-# --- HUVUDAPP ---
-
+# --- CSS ---
 st.markdown("""
     <style>
-    /* 1. Behåll din existerande knapp-styling */
     div[data-testid="stButton"] button {
         padding: 0px !important;
         min-height: 20px !important;
@@ -92,40 +82,29 @@ st.markdown("""
         align-items: center !important;
         justify-content: center !important;
     }
-
-    /* 2. Tvinga horisontell layout på mobil */
     [data-testid="stHorizontalBlock"] {
         display: flex !important;
         flex-direction: row !important;
         flex-wrap: nowrap !important;
         align-items: center !important;
-        /* HÄR MINSKAR VI MELLANRUMMET MELLAN RADERNA */
         gap: 0px !important; 
         margin-bottom: -8px !important; 
     }
-
-    /* 3. Dina exakta bredder från tidigare */
     [data-testid="stHorizontalBlock"] > div:nth-child(1) { width: 20% !important; min-width: 20% !important; }
     [data-testid="stHorizontalBlock"] > div:nth-child(2) { width: 17% !important; min-width: 17% !important; }
     [data-testid="stHorizontalBlock"] > div:nth-child(3) { width: 18% !important; min-width: 18% !important; }
     [data-testid="stHorizontalBlock"] > div:nth-child(4) { width: 15% !important; min-width: 15% !important; }
-
-    /* 4. TA BORT VERTICAL PADDING I CELLERNA (Detta fixar din fråga) */
     [data-testid="column"] {
         padding-top: -2px !important;
         padding-bottom: -2px; !important;
         padding-left: 2px !important;
         padding-right: 2px !important;
     }
-    
-    /* Justera textens marginaler inuti cellerna */
     div[data-testid="stMarkdownContainer"] p {
         margin-bottom: 0px !important;
         padding-top: 0px !important;
         padding-bottom: 0px !important;
     }
-
-    /* Behåll mobil-textstorleken */
     @media (max-width: 480px) {
         div[data-testid="stMarkdownContainer"] p {
             font-size: 12px !important;
@@ -136,53 +115,11 @@ st.markdown("""
 
 data = load_data()
 
-# Skapa 4 flikar
-tab1, tab2, tab3, tab4 = st.tabs(["Repetitioner", "Översikt", "Hantera Kapitel", "Lägg till nytt"])
+# Skapa 3 flikar (Tidigare flik 1 är borttagen)
+tab1, tab2, tab3 = st.tabs(["Översikt", "Hantera Kapitel", "Lägg till nytt"])
 
-# --- FLIK 1: DAGENS REPETITIONER ---
+# --- FLIK 1: VISUELL ÖVERSIKT (Tidigare Tab 2) ---
 with tab1:
-    today_str = str(datetime.date.today())
-    
-    # Filtrera ut de som ska repeteras idag eller tidigare
-    to_review = [item for item in data if item.get("nasta_repetition", today_str) <= today_str]
-    
-    # Sortera listan efter datum (stigande, så äldst kommer först)
-    to_review = sorted(to_review, key=lambda x: x.get("nasta_repetition", today_str))
-    
-    if not to_review:
-        st.success("Bra jobbat! Du har inga fler repetitioner planerade för idag. 🎉")
-    else:
-        st.write(f"Du har **{len(to_review)}** repetition(er) att göra:")
-        st.divider()
-        
-        for item in to_review:
-            sid_info = f" (S. {item['sidor']})" if item.get('sidor') else ""
-            
-            # Använd kolumner för en mer kompakt layout
-            col1, col2, col3 = st.columns([3, 1, 1])
-            
-            with col1:
-                datum_text = item.get('nasta_repetition', today_str)
-                st.markdown(f"**{item['namn']}**{sid_info} | Steg {item['steg']} | 📅 {datum_text}")
-                
-            with col2:
-                if st.button("✅ Klar", key=f"success_{item['id']}", use_container_width=True):
-                    item["steg"] = min(item["steg"] + 1, 5)
-                    item["nasta_repetition"] = str(calculate_next_date(item["steg"]))
-                    save_data(data)
-                    st.rerun()
-            with col3:
-                if st.button("❌ Öva", key=f"fail_{item['id']}", use_container_width=True):
-                    item["steg"] = 1
-                    item["nasta_repetition"] = today_str
-                    save_data(data)
-                    st.rerun()
-            
-            # Tunn linje
-            st.markdown("<hr style='margin: 0.2em 0; border: none; border-bottom: 1px solid #ddd;'>", unsafe_allow_html=True)
-
-# --- FLIK 2: VISUELL ÖVERSIKT ---
-with tab2:
     table_data = []
     tillagda_dict = {item['namn']: item for item in data}
     
@@ -198,11 +135,7 @@ with tab2:
             })
         else:
             table_data.append({
-                "namn": surah,
-                "steg": 0,
-                "datum": "-",
-                "id": None,
-                "tillagd": False
+                "namn": surah, "steg": 0, "datum": "-", "id": None, "tillagd": False
             })
             
     for item in data:
@@ -217,12 +150,7 @@ with tab2:
 
     sort_option = st.selectbox(
         "Sortera tabellen efter:", 
-        [
-            "Kapitel (Standardordning)", 
-            "Datum (Försenade först)", 
-            "Steg (Lägst först)", 
-            "Steg (Högst först)"
-        ]
+        ["Kapitel (Standardordning)", "Datum (Försenade först)", "Steg (Lägst först)", "Steg (Högst först)"]
     )
     
     today_str = str(datetime.date.today())
@@ -236,21 +164,17 @@ with tab2:
 
     st.divider()
     
-    # Justerade kolumnbredder för att ge plats åt två knappar i sista kolumnen
     kolumn_bredder = [3.5, 2, 2, 2.5]
     h1, h2, h3, h4 = st.columns(kolumn_bredder)
-    
     header_style = "font-size: 0.5em; font-weight: bold; padding: 2px;"
     h1.markdown(f"<div style='{header_style}'>Kapitel</div>", unsafe_allow_html=True)
     h2.markdown(f"<div style='{header_style}'>Steg</div>", unsafe_allow_html=True)
     h3.markdown(f"<div style='{header_style}'>Datum</div>", unsafe_allow_html=True)
     h4.markdown(f"<div style='{header_style}'>Åtgärd</div>", unsafe_allow_html=True)
-    
     st.markdown("<hr style='margin: 0.1em 0; border: none; border-bottom: 2px solid #666;'>", unsafe_allow_html=True)
     
     for row in table_data:
         c1, c2, c3, c4 = st.columns(kolumn_bredder)
-        
         is_overdue = row['tillagd'] and row['datum'] <= today_str
         bg_style = "background-color: rgba(255, 75, 75, 0.15); padding: 0px; font-size: 0.5em; border-radius: 4px;" if is_overdue else "padding: 0px; font-size: 0.5em;"
         cirklar = "🟢" * row['steg'] + "⚪" * (5 - row['steg']) if row['tillagd'] else "⚪⚪⚪⚪⚪"
@@ -264,12 +188,9 @@ with tab2:
             st.markdown(f"<div style='{bg_style}'>{datum_text}</div>", unsafe_allow_html=True)
         with c4:
             if row['tillagd']:
-                # Skapa två små kolumner inuti åtgärdskolumnen för knapparna
-                none_col,btn_col1, btn_col2 = st.columns([1,2,2])
-                
+                none_col, btn_col1, btn_col2 = st.columns([1,2,2])
                 with btn_col1:
-                    # Knapp för att öka steg (Klar)
-                    if st.button("✔", key=f"tab2_pass_{row['id']}", help="Klar (Öka steg)"):
+                    if st.button("✔", key=f"tab1_pass_{row['id']}"):
                         for d in data:
                             if d['id'] == row['id']:
                                 d["steg"] = min(d["steg"] + 1, 5)
@@ -277,121 +198,68 @@ with tab2:
                                 break
                         save_data(data)
                         st.rerun()
-                
                 with btn_col2:
-                    # Knapp för att börja om (Misslyckades)
-                    if st.button("X", key=f"tab2_fail_{row['id']}", help="Misslyckades (Börja om på steg 1)"):
+                    if st.button("X", key=f"tab1_fail_{row['id']}"):
                         for d in data:
                             if d['id'] == row['id']:
                                 d["steg"] = 1
-                                d["nasta_repetition"] = str(datetime.date.today())
+                                d["nasta_repetition"] = today_str
                                 break
                         save_data(data)
                         st.rerun()
             else:
                 st.markdown("<div style='padding: 2px; color: #888; font-size: 0.85em;'>Ej tillagd</div>", unsafe_allow_html=True)
-        
         st.markdown("<hr style='margin: 0.1em 0; border: none; border-bottom: 1px solid #ddd;'>", unsafe_allow_html=True)
-        
-# --- FLIK 3: HANTERA KAPITEL ---
-with tab3:
+
+# --- FLIK 2: HANTERA KAPITEL (Tidigare Tab 3) ---
+with tab2:
     if not data:
         st.info("Inga kapitel tillagda ännu.")
     else:
         sorted_data = sorted(data, key=lambda x: x['namn'])
-        
-        for i, item in enumerate(sorted_data):
+        for item in sorted_data:
             sid_info = f" (Sida: {item['sidor']})" if item.get('sidor') else ""
             with st.expander(f"{item['namn']}{sid_info} - Steg {item['steg']}"):
-                
-                nytt_steg = st.select_slider(
-                    f"Justera steg manuellt för {item['namn']}",
-                    options=[1, 2, 3, 4, 5],
-                    value=int(item['steg']),
-                    key=f"slider_{item['id']}"
-                )
-                
+                nytt_steg = st.select_slider(f"Justera steg för {item['namn']}", options=[1, 2, 3, 4, 5], value=int(item['steg']), key=f"slider_{item['id']}")
                 if nytt_steg != item['steg']:
                     item['steg'] = nytt_steg
                     item["nasta_repetition"] = str(calculate_next_date(nytt_steg))
                     save_data(data)
                     st.rerun()
-                
-                st.write(f"**Nästa repetition:** {item['nasta_repetition']}")
-                
                 if st.button("🗑️ Ta bort kapitel", key=f"delete_{item['id']}"):
                     data = [d for d in data if d['id'] != item['id']]
                     save_data(data)
                     st.rerun()
 
-# --- FLIK 4: LÄGG TILL NYTT ---
-with tab4:    
-    add_mode = st.radio("Välj metod för att lägga till:", ["Enskilt kapitel", "Lägg till flera kapitel (Bulk)"])
-    st.divider()
-    
+# --- FLIK 3: LÄGG TILL NYTT (Tidigare Tab 4) ---
+with tab3:    
+    add_mode = st.radio("Metod:", ["Enskilt kapitel", "Bulk"], horizontal=True)
     if add_mode == "Enskilt kapitel":
-        val_namn = st.selectbox("Välj Surah från listan", SURAH_LISTA)
-        eget_namn = st.text_input("Eller skriv eget namn (t.ex. Juz 30)")
+        val_namn = st.selectbox("Välj Surah", SURAH_LISTA)
+        eget_namn = st.text_input("Eller eget namn")
         slutgiltigt_namn = eget_namn if eget_namn else val_namn
-        
-        ange_sidor = st.checkbox("Ange specifika sidor")
+        ange_sidor = st.checkbox("Ange sidor")
         sido_text = ""
-        
         if ange_sidor:
             col_s1, col_s2 = st.columns(2)
-            sida_start = col_s1.number_input("Från sida", min_value=1, value=1, step=1)
-            sida_slut = col_s2.number_input("Till sida", min_value=1, value=sida_start, step=1)
-            sido_text = f"{int(sida_start)}-{int(sida_slut)}" if sida_start != sida_slut else f"{int(sida_start)}"
-
-        vald_steg = st.select_slider("Välj start-steg", options=[1, 2, 3, 4, 5], value=1, key="steg_enskild")
-
+            s_start = col_s1.number_input("Från", min_value=1, value=1)
+            s_slut = col_s2.number_input("Till", min_value=1, value=s_start)
+            sido_text = f"{int(s_start)}-{int(s_slut)}" if s_start != s_slut else f"{int(s_start)}"
+        vald_steg = st.select_slider("Start-steg", options=[1, 2, 3, 4, 5], value=1)
         if st.button("Spara kapitel"):
-            if slutgiltigt_namn:
-                nasta_rep = str(datetime.date.today()) if vald_steg == 1 else str(calculate_next_date(vald_steg))
-                
-                new_item = {
-                    "id": str(uuid.uuid4()),
-                    "namn": slutgiltigt_namn,
-                    "sidor": sido_text,
-                    "steg": vald_steg,
-                    "nasta_repetition": nasta_rep
-                }
-                data.append(new_item)
-                save_data(data)
-                st.success(f"Lade till {slutgiltigt_namn} på steg {vald_steg}!")
-                st.rerun()
-
+            new_item = {"id": str(uuid.uuid4()), "namn": slutgiltigt_namn, "sidor": sido_text, "steg": vald_steg, "nasta_repetition": str(calculate_next_date(vald_steg)) if vald_steg > 1 else str(datetime.date.today())}
+            data.append(new_item)
+            save_data(data)
+            st.rerun()
     else:
-        st.write("Välj ett intervall av Suror att lägga till samtidigt.")
-        col_b1, col_b2 = st.columns(2)
-        start_surah = col_b1.selectbox("Från Surah", SURAH_LISTA)
-        slut_surah = col_b2.selectbox("Till Surah", SURAH_LISTA)
-        
-        vald_steg_bulk = st.select_slider("Välj start-steg för alla valda kapitel", options=[1, 2, 3, 4, 5], value=1, key="steg_bulk")
-        
-        if st.button("Spara markerade kapitel"):
-            start_idx = SURAH_LISTA.index(start_surah)
-            slut_idx = SURAH_LISTA.index(slut_surah)
-            
-            if start_idx > slut_idx:
-                st.error("Start-surah måste komma före eller vara samma som Till-surah!")
-            else:
-                added_count = 0
-                nasta_rep = str(datetime.date.today()) if vald_steg_bulk == 1 else str(calculate_next_date(vald_steg_bulk))
-                
-                for i in range(start_idx, slut_idx + 1):
-                    surah_namn = SURAH_LISTA[i]
-                    if not any(d['namn'] == surah_namn for d in data):
-                        new_item = {
-                            "id": str(uuid.uuid4()),
-                            "namn": surah_namn,
-                            "sidor": "", 
-                            "steg": vald_steg_bulk,
-                            "nasta_repetition": nasta_rep
-                        }
-                        data.append(new_item)
-                        added_count += 1
-                
-                save_data(data)
-                st.success(f"Lade till {added_count} nya kapitel på steg {vald_steg_bulk}!")
-                st.rerun()
+        c_b1, c_b2 = st.columns(2)
+        start_s = c_b1.selectbox("Från", SURAH_LISTA)
+        slut_s = c_b2.selectbox("Till", SURAH_LISTA)
+        bulk_steg = st.select_slider("Steg för alla", options=[1, 2, 3, 4, 5], value=1)
+        if st.button("Spara bulk"):
+            s_idx, e_idx = SURAH_LISTA.index(start_s), SURAH_LISTA.index(slut_s)
+            for i in range(s_idx, e_idx + 1):
+                if not any(d['namn'] == SURAH_LISTA[i] for d in data):
+                    data.append({"id": str(uuid.uuid4()), "namn": SURAH_LISTA[i], "sidor": "", "steg": bulk_steg, "nasta_repetition": str(calculate_next_date(bulk_steg))})
+            save_data(data)
+            st.rerun()
