@@ -269,7 +269,7 @@ with tab2:
                 
                 with btn_col1:
                     # Knapp för att öka steg (Klar)
-                    if st.button("✅", key=f"tab2_pass_{row['id']}", help="Klar (Öka steg)"):
+                    if st.button("✔", key=f"tab2_pass_{row['id']}", help="Klar (Öka steg)"):
                         for d in data:
                             if d['id'] == row['id']:
                                 d["steg"] = min(d["steg"] + 1, 5)
