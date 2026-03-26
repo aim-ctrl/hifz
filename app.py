@@ -249,7 +249,7 @@ with tab2:
         c1, c2, c3, c4 = st.columns(kolumn_bredder)
         
         is_overdue = row['tillagd'] and row['datum'] <= today_str
-        bg_style = "background-color: rgba(255, 75, 75, 0.15); padding: 2px; font-size: 0.85em; border-radius: 4px;" if is_overdue else "padding: 2px; font-size: 0.85em;"
+        bg_style = "background-color: rgba(255, 75, 75, 0.15); padding: 2px; font-size: 0.5em; border-radius: 4px;" if is_overdue else "padding: 2px; font-size: 0.85em;"
         cirklar = "🟢" * row['steg'] + "⚪" * (5 - row['steg']) if row['tillagd'] else "⚪⚪⚪⚪⚪"
         
         with c1:
