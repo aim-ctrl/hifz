@@ -99,36 +99,40 @@ steg_counts = {1: 0, 2: 0, 3: 0, 4: 0, 5: 0}
 for d in st.session_state.db_data:
     steg_counts[d.get('steg', 1)] += 1
 
-# Minimalistisk progress-bar baserat på total_added / 114
+# Minimalistisk progress-bar
 progress_pct = int((total_added / 114) * 100) if total_added > 0 else 0
 
-st.markdown(f"""
-    <div style="background: #ffffff; padding: 12px; border-radius: 12px; border: 1px solid #e0e0e0; margin-bottom: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.02);">
-        
-        <div style="display: flex; justify-content: space-around; align-items: center; margin-bottom: 8px;">
-            <div style="text-align: center;">
-                <div style="font-size: 0.75em; color: #666; text-transform: uppercase; letter-spacing: 0.5px;">Påbörjade</div>
-                <div style="font-size: 1.6em; font-weight: 800; color: #007BFF; line-height: 1.1;">{total_added}<span style="font-size: 0.5em; color: #999;">/114</span></div>
-            </div>
-            <div style="width: 1px; height: 35px; background: #eee;"></div> <div style="text-align: center;">
-                <div style="font-size: 0.75em; color: #666; text-transform: uppercase; letter-spacing: 0.5px;">Bemästrade</div>
-                <div style="font-size: 1.6em; font-weight: 800; color: #28A745; line-height: 1.1;">{steg_counts[5]}<span style="font-size: 0.5em; color: #999;"> st</span></div>
-            </div>
+# Vi lägger all HTML och CSS i en variabel
+html_kod = f"""
+<div style="background: #ffffff; padding: 12px; border-radius: 12px; border: 1px solid #e0e0e0; margin-bottom: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.02);">
+    
+    <div style="display: flex; justify-content: space-around; align-items: center; margin-bottom: 8px;">
+        <div style="text-align: center;">
+            <div style="font-size: 0.75em; color: #666; text-transform: uppercase; letter-spacing: 0.5px;">Påbörjade</div>
+            <div style="font-size: 1.6em; font-weight: 800; color: #007BFF; line-height: 1.1;">{total_added}<span style="font-size: 0.5em; color: #999;">/114</span></div>
         </div>
-        
-        <div style="width: 100%; background-color: #f0f0f0; border-radius: 4px; height: 6px; margin-bottom: 8px;">
-            <div style="width: {progress_pct}%; background-color: #007BFF; height: 6px; border-radius: 4px;"></div>
-        </div>
-
-        <div style="display: flex; justify-content: space-between; font-size: 0.75em; color: #444; padding: 0 4px; font-weight: 500;">
-            <span>S1: <b style="color:#ff4b4b;">{steg_counts[1]}</b></span>
-            <span>S2: <b>{steg_counts[2]}</b></span>
-            <span>S3: <b>{steg_counts[3]}</b></span>
-            <span>S4: <b>{steg_counts[4]}</b></span>
-            <span>S5: <b style="color:#28A745;">{steg_counts[5]}</b></span>
+        <div style="width: 1px; height: 35px; background: #eee;"></div> <div style="text-align: center;">
+            <div style="font-size: 0.75em; color: #666; text-transform: uppercase; letter-spacing: 0.5px;">Bemästrade</div>
+            <div style="font-size: 1.6em; font-weight: 800; color: #28A745; line-height: 1.1;">{steg_counts[5]}<span style="font-size: 0.5em; color: #999;"> st</span></div>
         </div>
     </div>
-""", unsafe_allow_html=True)
+    
+    <div style="width: 100%; background-color: #f0f0f0; border-radius: 4px; height: 6px; margin-bottom: 8px;">
+        <div style="width: {progress_pct}%; background-color: #007BFF; height: 6px; border-radius: 4px;"></div>
+    </div>
+
+    <div style="display: flex; justify-content: space-between; font-size: 0.75em; color: #444; padding: 0 4px; font-weight: 500;">
+        <span>S1: <b style="color:#ff4b4b;">{steg_counts[1]}</b></span>
+        <span>S2: <b>{steg_counts[2]}</b></span>
+        <span>S3: <b>{steg_counts[3]}</b></span>
+        <span>S4: <b>{steg_counts[4]}</b></span>
+        <span>S5: <b style="color:#28A745;">{steg_counts[5]}</b></span>
+    </div>
+</div>
+"""
+
+# Rendera HTML-koden så att Streamlit bygger gränssnittet istället för att visa texten
+st.markdown(html_kod, unsafe_allow_html=True)
 
 # --- HUVUDAPP ---
 today_str = str(datetime.date.today())
@@ -191,7 +195,7 @@ with tab_hantera:
 
 # --- FLIK 4: DIAGRAM ---
 with tab_diagram:
-    st.write("Inplanerade kapitel per datum:")
+    st.write("Inplanerade kapitel per datum framöver:")
     if st.session_state.db_data:
         alla_datum = [d['nasta_repetition'] for d in st.session_state.db_data]
         datum_raknare = Counter(alla_datum)
@@ -217,7 +221,7 @@ with tab_lagg_till:
                 save_to_db(st.session_state.db_data)
                 st.success(f"Lade till {vald_surah}!")
             else:
-                st.warning("Detta kapitel finns redan.")
+                st.warning("Detta kapitel finns redan i din lista.")
                 
     elif metod == "Bulk (Flera)":
         c1, c2 = st.columns(2)
