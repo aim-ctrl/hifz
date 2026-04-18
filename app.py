@@ -4,7 +4,6 @@ import datetime
 import uuid
 import pandas as pd
 from collections import Counter
-import plotly.graph_objects as go # Ny import för speedometers
 
 # --- KONFIGURATION & SECRETS ---
 st.set_page_config(page_title="Quran Repetition", page_icon="📖", layout="centered")
@@ -94,58 +93,48 @@ def delete_item(item_id):
     save_to_db(st.session_state.db_data)
     st.toast("🗑️ Kapitel borttaget.")
 
-# --- PLOTLY SPEEDOMETER FUNKTION ---
-def create_gauge(value, max_val, title, color):
-    fig = go.Figure(go.Indicator(
-        mode="gauge+number",
-        value=value,
-        title={'text': title, 'font': {'size': 14, 'color': 'gray'}},
-        number={'font': {'size': 26, 'color': '#333'}},
-        gauge={
-            'axis': {'range': [0, max_val], 'visible': False},
-            'bar': {'color': color, 'thickness': 0.8},
-            'bgcolor': "#f2f2f2",
-            'borderwidth': 0,
-        }
-    ))
-    fig.update_layout(
-        margin=dict(l=10, r=10, t=30, b=10),
-        height=140,
-        paper_bgcolor="rgba(0,0,0,0)",
-        font={'family': "Arial, sans-serif"}
-    )
-    return fig
-
-# --- TOPP: STATISTIK (Ersätter gamla titeln & sidebaren) ---
+# --- TOPP: KOMPAKT STATISTIK (HTML/CSS Flexbox) ---
 total_added = len(st.session_state.db_data)
 steg_counts = {1: 0, 2: 0, 3: 0, 4: 0, 5: 0}
 for d in st.session_state.db_data:
     steg_counts[d.get('steg', 1)] += 1
 
-# Designval UX: Att rita 6 stora speedometers blir rörigt på en liten mobilskärm. 
-# Vi ritar 2 huvudsakliga speedometers, och en ren siffer-rad för stegen nedanför.
-col_g1, col_g2 = st.columns(2)
-with col_g1:
-    st.plotly_chart(create_gauge(total_added, 114, "Påbörjade", "#007BFF"), use_container_width=True, config={'displayModeBar': False})
-with col_g2:
-    st.plotly_chart(create_gauge(steg_counts[5], 114, "Bemästrade (Steg 5)", "#28A745"), use_container_width=True, config={'displayModeBar': False})
+# Minimalistisk progress-bar baserat på total_added / 114
+progress_pct = int((total_added / 114) * 100) if total_added > 0 else 0
 
-# Små mätare/värden för stegen (perfekt för att se fördelning snabbt)
-st.caption("📈 Kapitel per steg:")
-c1, c2, c3, c4, c5 = st.columns(5)
-c1.metric("Steg 1", steg_counts[1])
-c2.metric("Steg 2", steg_counts[2])
-c3.metric("Steg 3", steg_counts[3])
-c4.metric("Steg 4", steg_counts[4])
-c5.metric("Steg 5", steg_counts[5])
+st.markdown(f"""
+    <div style="background: #ffffff; padding: 12px; border-radius: 12px; border: 1px solid #e0e0e0; margin-bottom: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.02);">
+        
+        <div style="display: flex; justify-content: space-around; align-items: center; margin-bottom: 8px;">
+            <div style="text-align: center;">
+                <div style="font-size: 0.75em; color: #666; text-transform: uppercase; letter-spacing: 0.5px;">Påbörjade</div>
+                <div style="font-size: 1.6em; font-weight: 800; color: #007BFF; line-height: 1.1;">{total_added}<span style="font-size: 0.5em; color: #999;">/114</span></div>
+            </div>
+            <div style="width: 1px; height: 35px; background: #eee;"></div> <div style="text-align: center;">
+                <div style="font-size: 0.75em; color: #666; text-transform: uppercase; letter-spacing: 0.5px;">Bemästrade</div>
+                <div style="font-size: 1.6em; font-weight: 800; color: #28A745; line-height: 1.1;">{steg_counts[5]}<span style="font-size: 0.5em; color: #999;"> st</span></div>
+            </div>
+        </div>
+        
+        <div style="width: 100%; background-color: #f0f0f0; border-radius: 4px; height: 6px; margin-bottom: 8px;">
+            <div style="width: {progress_pct}%; background-color: #007BFF; height: 6px; border-radius: 4px;"></div>
+        </div>
 
-st.divider() # Skapar en snygg avskiljare innan flikarna
+        <div style="display: flex; justify-content: space-between; font-size: 0.75em; color: #444; padding: 0 4px; font-weight: 500;">
+            <span>S1: <b style="color:#ff4b4b;">{steg_counts[1]}</b></span>
+            <span>S2: <b>{steg_counts[2]}</b></span>
+            <span>S3: <b>{steg_counts[3]}</b></span>
+            <span>S4: <b>{steg_counts[4]}</b></span>
+            <span>S5: <b style="color:#28A745;">{steg_counts[5]}</b></span>
+        </div>
+    </div>
+""", unsafe_allow_html=True)
 
 # --- HUVUDAPP ---
 today_str = str(datetime.date.today())
 
 tab_dagens, tab_kommande, tab_hantera, tab_diagram, tab_lagg_till = st.tabs([
-    "🎯 Dagens", "⏳ Kommande", "📚 Översikt", "📊 Kalender", "➕ Nytt"
+    "🎯 Dagens", "⏳ Komm.", "📚 Översikt", "📊 Graf", "➕ Nytt"
 ])
 
 # --- FLIK 1: DAGENS PASS ---
@@ -172,14 +161,14 @@ with tab_kommande:
     kommande_queue.sort(key=lambda x: x['nasta_repetition'])
 
     if not kommande_queue:
-        st.info("Inga framtida repetitioner är inplanerade just nu.")
+        st.info("Inga framtida repetitioner inplanerade.")
     else:
         for item in kommande_queue:
             with st.container(border=True):
                 col1, col2 = st.columns([3, 2])
                 with col1:
                     st.markdown(f"**{item['namn']}**")
-                    st.caption(f"Steg: {item['steg']} • Inplanerad: {item['nasta_repetition']}")
+                    st.caption(f"Steg: {item['steg']} • Planerad: {item['nasta_repetition']}")
                 with col2:
                     st.button("✅ Kör nu", key=f"done_kommande_{item['id']}", on_click=mark_done, args=(item['id'],), use_container_width=True)
                     st.button("🔄 Igen", key=f"fail_kommande_{item['id']}", on_click=mark_failed, args=(item['id'],), use_container_width=True)
@@ -202,7 +191,7 @@ with tab_hantera:
 
 # --- FLIK 4: DIAGRAM ---
 with tab_diagram:
-    st.write("Antal kapitel inplanerade per datum framöver:")
+    st.write("Inplanerade kapitel per datum:")
     if st.session_state.db_data:
         alla_datum = [d['nasta_repetition'] for d in st.session_state.db_data]
         datum_raknare = Counter(alla_datum)
