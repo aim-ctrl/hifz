@@ -190,15 +190,64 @@ with tab_hantera:
 
 # --- FLIK 4: DIAGRAM ---
 with tab_diagram:
-    st.write("Inplanerade kapitel per datum framöver:")
-    if st.session_state.db_data:
-        alla_datum = [d['nasta_repetition'] for d in st.session_state.db_data]
-        datum_raknare = Counter(alla_datum)
-        df_diagram = pd.DataFrame(list(datum_raknare.items()), columns=['Datum', 'Antal kapitel'])
-        df_diagram = df_diagram.sort_values('Datum')
-        st.bar_chart(df_diagram.set_index('Datum'))
+    st.write("Visuell arbetsbelastning och detaljerad planering framöver:")
+    
+    if not st.session_state.db_data:
+        st.info("Lägg till kapitel för att se din planering!")
     else:
-        st.info("Lägg till kapitel för att se statistik!")
+        # 1. Konvertera databasen till en Pandas DataFrame för enkel datahantering
+        df = pd.DataFrame(st.session_state.db_data)
+        df['nasta_repetition'] = pd.to_datetime(df['nasta_repetition']).dt.date
+        
+        idag = datetime.date.today()
+        # Hitta det datum som ligger längst fram i tiden (om det är äldre än idag, använd idag + 7 dagar som baseline)
+        max_datum = df['nasta_repetition'].max()
+        if pd.isna(max_datum) or max_datum < idag:
+            max_datum = idag + datetime.timedelta(days=7)
+            
+        # 2. Skapa en komplett tidslinje (inkluderar alla noll-dagar)
+        alla_dagar = pd.date_range(start=idag, end=max_datum)
+        planering = []
+        
+        for dag in alla_dagar:
+            dagens_datum = dag.date()
+            # Plocka ut alla kapitel för just denna dag
+            dagens_kapitel = df[df['nasta_repetition'] == dagens_datum]
+            antal = len(dagens_kapitel)
+            
+            # Spara namnen i en lista
+            namn_lista = dagens_kapitel['namn'].tolist() if antal > 0 else []
+            
+            planering.append({
+                "Datum": str(dagens_datum),
+                "Antal kapitel": antal,
+                "Kapitel": namn_lista
+            })
+            
+        df_planering = pd.DataFrame(planering)
+        
+        # 3. Rita upp diagrammet (Staplar visar nu även 0-dagar tack vare vår kompletta tidslinje)
+        st.bar_chart(df_planering.set_index("Datum")["Antal kapitel"], color="#007BFF")
+        
+        st.divider() # En snygg linje som separerar grafen från texten
+        
+        # 4. Detaljerad text-vy för vad som faktiskt ska läsas
+        st.markdown("<div style='font-size: 0.85em; color: #666; text-transform: uppercase; margin-bottom: 8px;'>📅 Vilka kapitel gäller?</div>", unsafe_allow_html=True)
+        
+        # Filtrera bort noll-dagarna från listvyn så den hålls kompakt
+        dagar_med_krav = df_planering[df_planering["Antal kapitel"] > 0]
+        
+        if dagar_med_krav.empty:
+            st.success("Inga kapitel schemalagda framöver!")
+        else:
+            for _, rad in dagar_med_krav.iterrows():
+                # En liten varningsemoji om datumet har passerats (försenade)
+                is_past = rad['Datum'] < str(idag)
+                status_icon = "⚠️ Försenat:" if is_past else "📍"
+                
+                with st.expander(f"{status_icon} {rad['Datum']} ({rad['Antal kapitel']} st)"):
+                    for kap in rad['Kapitel']:
+                        st.markdown(f"- **{kap}**")
 
 # --- FLIK 5: LÄGG TILL ---
 with tab_lagg_till:
