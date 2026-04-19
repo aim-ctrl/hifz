@@ -71,7 +71,7 @@ def save_to_db(data_to_save):
 if "db_data" not in st.session_state:
     st.session_state.db_data = fetch_from_db()
 
-# --- FUNKTIONER FÖR ATT UPPDATERA ---
+# --- DATABAS-FUNKTIONER ---
 def mark_done(item_id):
     for d in st.session_state.db_data:
         if str(d['id']) == str(item_id):
@@ -79,6 +79,12 @@ def mark_done(item_id):
             nytt_steg = min(nuvarande_steg + 1, 5)
             d["steg"] = nytt_steg
             d["nasta_repetition"] = str(calculate_next_date(nytt_steg))
+            
+            # Synka Flik 3 widget i bakgrunden
+            seg_key = f"seg_{item_id}"
+            if seg_key in st.session_state:
+                st.session_state[seg_key] = nytt_steg
+                
             st.toast(f"✅ {d['namn']} -> Steg {nytt_steg}!")
             if nytt_steg == 5 and nuvarande_steg != 5:
                 st.balloons()
@@ -90,6 +96,12 @@ def mark_failed(item_id):
         if str(d['id']) == str(item_id):
             d["steg"] = 1
             d["nasta_repetition"] = str(datetime.date.today())
+            
+            # Synka Flik 3 widget i bakgrunden
+            seg_key = f"seg_{item_id}"
+            if seg_key in st.session_state:
+                st.session_state[seg_key] = 1
+                
             st.toast(f"🔄 {d['namn']} återställd.")
             break
     save_to_db(st.session_state.db_data)
@@ -99,8 +111,28 @@ def delete_item(item_id):
     save_to_db(st.session_state.db_data)
     st.toast("🗑️ Kapitel borttaget.")
 
+# --- CALLBACKS (LÖSNINGEN PÅ BUGGEN) ---
+def action_callback(item_id, widget_key):
+    val = st.session_state[widget_key]
+    if val:
+        if "✅" in val:
+            mark_done(item_id)
+        elif "🔄" in val:
+            mark_failed(item_id)
+        # Säkert att nollställa inuti en callback!
+        st.session_state[widget_key] = None
+
+def step_change_callback(item_id, widget_key):
+    nytt_steg = st.session_state[widget_key]
+    if nytt_steg is not None:
+        for d in st.session_state.db_data:
+            if str(d['id']) == str(item_id) and d['steg'] != nytt_steg:
+                d['steg'] = nytt_steg
+                d['nasta_repetition'] = str(calculate_next_date(nytt_steg))
+                save_to_db(st.session_state.db_data)
+                break
+
 # --- SÄKER, STILREN CSS ---
-# Vi tar bort alla fula mobil-hacks och fokuserar bara på att tajta till marginalerna
 st.markdown('''
     <style>
     /* Slimma ner kortens utfyllnad (padding) inuti */
@@ -160,21 +192,17 @@ with tab_dagens:
     else:
         for item in repetition_queue:
             with st.container(border=True):
-                # Använder Flexbox via HTML för att ha titeln till vänster och datat till höger på SAMMA rad
                 st.markdown(f"<div style='display:flex; justify-content:space-between; align-items:center; margin-bottom: 8px;'><b style='font-size:1.05em;'>{item['namn']}</b><span style='font-size:0.8em; color:var(--text-color); opacity:0.7;'>S{item['steg']} • {item['nasta_repetition']}</span></div>", unsafe_allow_html=True)
                 
-                # En "Native" modern knapprad istället för kolonner
-                action = st.segmented_control("Åtgärd", ["✅ Klar", "🔄 Igen"], key=f"act_dag_{item['id']}", label_visibility="collapsed")
-                
-                if action:
-                    if action == "✅ Klar":
-                        mark_done(item['id'])
-                    elif action == "🔄 Igen":
-                        mark_failed(item['id'])
-                    
-                    # Rensa minnet för just den här switchen så den är tom nästa gång den visas
-                    st.session_state[f"act_dag_{item['id']}"] = None
-                    st.rerun()
+                key_name = f"act_dag_{item['id']}"
+                st.segmented_control(
+                    "Åtgärd", 
+                    ["✅ Klar", "🔄 Igen"], 
+                    key=key_name, 
+                    label_visibility="collapsed",
+                    on_change=action_callback,
+                    args=(item['id'], key_name)
+                )
 
 # --- FLIK 2: KOMMANDE ---
 with tab_kommande:
@@ -188,16 +216,15 @@ with tab_kommande:
             with st.container(border=True):
                 st.markdown(f"<div style='display:flex; justify-content:space-between; align-items:center; margin-bottom: 8px;'><b style='font-size:1.05em;'>{item['namn']}</b><span style='font-size:0.8em; color:var(--text-color); opacity:0.7;'>S{item['steg']} • {item['nasta_repetition']}</span></div>", unsafe_allow_html=True)
                 
-                action = st.segmented_control("Åtgärd", ["✅ Kör nu", "🔄 Återställ"], key=f"act_kom_{item['id']}", label_visibility="collapsed")
-                
-                if action:
-                    if action == "✅ Kör nu":
-                        mark_done(item['id'])
-                    elif action == "🔄 Återställ":
-                        mark_failed(item['id'])
-                    
-                    st.session_state[f"act_kom_{item['id']}"] = None
-                    st.rerun()
+                key_name = f"act_kom_{item['id']}"
+                st.segmented_control(
+                    "Åtgärd", 
+                    ["✅ Kör nu", "🔄 Återställ"], 
+                    key=key_name, 
+                    label_visibility="collapsed",
+                    on_change=action_callback,
+                    args=(item['id'], key_name)
+                )
 
 # --- FLIK 3: ÖVERSIKT OCH HANTERING ---
 with tab_hantera:
@@ -218,13 +245,19 @@ with tab_hantera:
             
             c1, c2 = st.columns([5, 1], vertical_alignment="center")
             with c1:
-                nytt_steg = st.segmented_control("St", options=[1, 2, 3, 4, 5], default=int(item['steg']), key=f"seg_{item['id']}", label_visibility="collapsed")
-                if nytt_steg and nytt_steg != int(item['steg']):
-                    item['steg'] = nytt_steg
-                    item['nasta_repetition'] = str(calculate_next_date(nytt_steg))
-                    st.session_state[f"seg_{item['id']}"] = nytt_steg
-                    save_to_db(st.session_state.db_data)
-                    st.rerun()
+                key_name = f"seg_{item['id']}"
+                # Sätt minnet innan widgeten skapas så att värdet alltid stämmer
+                if key_name not in st.session_state:
+                    st.session_state[key_name] = int(item['steg'])
+                    
+                st.segmented_control(
+                    "St", 
+                    options=[1, 2, 3, 4, 5], 
+                    key=key_name, 
+                    label_visibility="collapsed",
+                    on_change=step_change_callback,
+                    args=(item['id'], key_name)
+                )
             with c2:
                 st.button("🗑️", key=f"del_{item['id']}", on_click=delete_item, args=(item['id'],), help="Ta bort", use_container_width=True)
 
