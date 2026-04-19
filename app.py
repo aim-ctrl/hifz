@@ -44,7 +44,7 @@ SURAH_LISTA = [f"{i}. {name}" for i, name in enumerate(raw_surah_names, 1)]
 def calculate_next_date(current_step):
     today = datetime.date.today()
     intervals = {1: 0, 2: 1, 3: 3, 4: 7, 5: 30}
-    days = intervals.get(int(current_step), 1) # Säkerställ heltal här också
+    days = intervals.get(int(current_step), 1)
     return today + datetime.timedelta(days=days)
 
 @st.cache_data(ttl=3600)
@@ -59,7 +59,9 @@ def fetch_from_db():
 
 def save_to_db(data_to_save):
     try:
-        requests.put(URL, json=data_to_save, headers=HEADERS)
+        response = requests.put(URL, json=data_to_save, headers=HEADERS)
+        if response.status_code != 200:
+            st.error(f"Ett fel uppstod vid kontakt med databasen. Statuskod: {response.status_code}")
         fetch_from_db.clear()
     except Exception as e:
         st.error(f"Fel vid sparning: {e}")
@@ -71,13 +73,19 @@ if "db_data" not in st.session_state:
 # --- CALLBACKS FÖR KNAPPAR ---
 def mark_done(item_id):
     for d in st.session_state.db_data:
-        # BUGGFIX: Tvinga item_id till sträng ifall formaten skiljer sig
         if str(d['id']) == str(item_id):
-            # BUGGFIX: Tvinga 'steg' till integer innan addition så undviker vi TypeError
             nuvarande_steg = int(d.get("steg", 1))
-            d["steg"] = min(nuvarande_steg + 1, 5)
-            d["nasta_repetition"] = str(calculate_next_date(d["steg"]))
-            st.toast(f"✅ {d['namn']} uppflyttad till steg {d['steg']}!")
+            nytt_steg = min(nuvarande_steg + 1, 5)
+            
+            d["steg"] = nytt_steg
+            d["nasta_repetition"] = str(calculate_next_date(nytt_steg))
+            
+            # BUGGFIX: Synkronisera sliderns värde i minnet så den inte tvingar tillbaka steget!
+            slider_key = f"slider_{item_id}"
+            if slider_key in st.session_state:
+                st.session_state[slider_key] = nytt_steg
+                
+            st.toast(f"✅ {d['namn']} uppflyttad till steg {nytt_steg}!")
             break
     save_to_db(st.session_state.db_data)
 
@@ -86,6 +94,12 @@ def mark_failed(item_id):
         if str(d['id']) == str(item_id):
             d["steg"] = 1
             d["nasta_repetition"] = str(datetime.date.today())
+            
+            # BUGGFIX: Synkronisera sliderns värde i minnet
+            slider_key = f"slider_{item_id}"
+            if slider_key in st.session_state:
+                st.session_state[slider_key] = 1
+                
             st.toast(f"🔄 {d['namn']} återställd till steg 1.")
             break
     save_to_db(st.session_state.db_data)
@@ -195,10 +209,9 @@ with tab_diagram:
     if not st.session_state.db_data:
         st.info("Lägg till kapitel för att se din planering!")
     else:
-        # NY FUNKTIONALITET: Bygg DataFrame för ett Stacked Bar Chart
         df = pd.DataFrame(st.session_state.db_data)
         df['nasta_repetition'] = pd.to_datetime(df['nasta_repetition']).dt.date
-        df['steg'] = df['steg'].astype(int) # Viktigt att ha steg som integers
+        df['steg'] = df['steg'].astype(int) 
         
         idag = datetime.date.today()
         max_datum = df['nasta_repetition'].max()
@@ -207,30 +220,22 @@ with tab_diagram:
             
         alla_dagar = pd.date_range(start=idag, end=max_datum).date
         
-        # Gruppera datan per datum OCH steg. 'unstack' skapar kolumner för varje steg.
         chart_data = df.groupby(['nasta_repetition', 'steg']).size().unstack(fill_value=0)
-        
-        # Fyll i saknade datum så vi får en obruten tidslinje
         chart_data = chart_data.reindex(alla_dagar, fill_value=0)
         
-        # Se till att alla kolumner (1 till 5) existerar, även om ingen är på ett visst steg just nu
         for i in range(1, 6):
             if i not in chart_data.columns:
                 chart_data[i] = 0
                 
-        # Sortera kolumnerna och byt namn till text för att legenden i diagrammet ska se bra ut
         chart_data = chart_data[[1, 2, 3, 4, 5]]
         chart_data.columns = ["Steg 1", "Steg 2", "Steg 3", "Steg 4", "Steg 5"]
         
-        # Färgkodning: Röd (Steg 1) till Grön (Steg 5)
         steg_farger = ["#ff4b4b", "#ffa500", "#ffd700", "#4DA3FF", "#28A745"]
         
-        # Genom att skicka in flera kolumner blir det per automatik ett stacked bar chart
         st.bar_chart(chart_data, color=steg_farger)
         
         st.divider() 
         
-        # Detaljerad text-vy förbättrad med Pandas
         st.markdown("<div style='font-size: 0.85em; color: #666; text-transform: uppercase; margin-bottom: 8px;'>📅 Vilka kapitel gäller?</div>", unsafe_allow_html=True)
         
         dagar_med_krav = df.groupby('nasta_repetition')
@@ -247,7 +252,6 @@ with tab_diagram:
                 
                 with st.expander(f"{status_icon} {datum} ({antal} st)"):
                     for _, rad in group.iterrows():
-                        # Visar även vilket steg varje kapitel befinner sig i listan
                         st.markdown(f"- **{rad['namn']}** (Steg {rad['steg']})")
 
 # --- FLIK 5: LÄGG TILL ---
