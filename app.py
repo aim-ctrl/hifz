@@ -71,22 +71,15 @@ def save_to_db(data_to_save):
 if "db_data" not in st.session_state:
     st.session_state.db_data = fetch_from_db()
 
-# --- CALLBACKS FÖR KNAPPAR ---
+# --- FUNKTIONER FÖR ATT UPPDATERA ---
 def mark_done(item_id):
     for d in st.session_state.db_data:
         if str(d['id']) == str(item_id):
             nuvarande_steg = int(d.get("steg", 1))
             nytt_steg = min(nuvarande_steg + 1, 5)
-            
             d["steg"] = nytt_steg
             d["nasta_repetition"] = str(calculate_next_date(nytt_steg))
-            
-            seg_key = f"seg_{item_id}"
-            if seg_key in st.session_state:
-                st.session_state[seg_key] = nytt_steg
-                
             st.toast(f"✅ {d['namn']} -> Steg {nytt_steg}!")
-            
             if nytt_steg == 5 and nuvarande_steg != 5:
                 st.balloons()
             break
@@ -97,11 +90,6 @@ def mark_failed(item_id):
         if str(d['id']) == str(item_id):
             d["steg"] = 1
             d["nasta_repetition"] = str(datetime.date.today())
-            
-            seg_key = f"seg_{item_id}"
-            if seg_key in st.session_state:
-                st.session_state[seg_key] = 1
-                
             st.toast(f"🔄 {d['namn']} återställd.")
             break
     save_to_db(st.session_state.db_data)
@@ -111,30 +99,17 @@ def delete_item(item_id):
     save_to_db(st.session_state.db_data)
     st.toast("🗑️ Kapitel borttaget.")
 
-# --- AGGRESSIV MOBIL-CSS ---
+# --- SÄKER, STILREN CSS ---
+# Vi tar bort alla fula mobil-hacks och fokuserar bara på att tajta till marginalerna
 st.markdown('''
     <style>
-    /* 1. Tvinga kolumner att stanna på samma rad på mobilen */
-    div[data-testid="stHorizontalBlock"] {
-        flex-wrap: nowrap !important;
-        gap: 0.3rem !important;
-        align-items: center !important;
-    }
-    
-    /* 2. Minska padding kraftigt i "korten" (containers) */
+    /* Slimma ner kortens utfyllnad (padding) inuti */
     [data-testid="stVerticalBlockBorderWrapper"] > div {
-        padding: 0.4rem 0.5rem !important;
+        padding: 0.6rem !important;
     }
-    
-    /* 3. Krymp knapparnas storlek för att passa perfekt */
-    div[data-testid="stButton"] button {
-        padding: 0.1rem 0.3rem !important;
-        min-height: 2.2rem !important;
-    }
-    
-    /* 4. Skala bort onödiga marginaler generellt */
+    /* Minska gapet mellan rubrik och knappar inuti kortet */
     [data-testid="stVerticalBlock"] > [style*="flex-direction: column;"] > [data-testid="stVerticalBlock"] {
-        gap: 0rem;
+        gap: 0.2rem !important;
     }
     </style>
 ''', unsafe_allow_html=True)
@@ -185,14 +160,21 @@ with tab_dagens:
     else:
         for item in repetition_queue:
             with st.container(border=True):
-                # 6 delar text, 2 delar klar, 2 delar fail - tvingas på en horisontell linje nu
-                col_text, col_done, col_fail = st.columns([6, 2, 2])
-                with col_text:
-                    st.markdown(f"<div style='line-height:1.2; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;'><b style='font-size:0.95em;'>{item['namn']}</b><br><span style='font-size:0.75em; opacity:0.7;'>S{item['steg']} • {item['nasta_repetition']}</span></div>", unsafe_allow_html=True)
-                with col_done:
-                    st.button("✅", key=f"done_dagens_{item['id']}", on_click=mark_done, args=(item['id'],), help="Klar", use_container_width=True, type="primary")
-                with col_fail:
-                    st.button("🔄", key=f"fail_dagens_{item['id']}", on_click=mark_failed, args=(item['id'],), help="Igen (Steg 1)", use_container_width=True)
+                # Använder Flexbox via HTML för att ha titeln till vänster och datat till höger på SAMMA rad
+                st.markdown(f"<div style='display:flex; justify-content:space-between; align-items:center; margin-bottom: 8px;'><b style='font-size:1.05em;'>{item['namn']}</b><span style='font-size:0.8em; color:var(--text-color); opacity:0.7;'>S{item['steg']} • {item['nasta_repetition']}</span></div>", unsafe_allow_html=True)
+                
+                # En "Native" modern knapprad istället för kolonner
+                action = st.segmented_control("Åtgärd", ["✅ Klar", "🔄 Igen"], key=f"act_dag_{item['id']}", label_visibility="collapsed")
+                
+                if action:
+                    if action == "✅ Klar":
+                        mark_done(item['id'])
+                    elif action == "🔄 Igen":
+                        mark_failed(item['id'])
+                    
+                    # Rensa minnet för just den här switchen så den är tom nästa gång den visas
+                    st.session_state[f"act_dag_{item['id']}"] = None
+                    st.rerun()
 
 # --- FLIK 2: KOMMANDE ---
 with tab_kommande:
@@ -204,13 +186,18 @@ with tab_kommande:
     else:
         for item in kommande_queue:
             with st.container(border=True):
-                col_text, col_done, col_fail = st.columns([6, 2, 2])
-                with col_text:
-                    st.markdown(f"<div style='line-height:1.2; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;'><b style='font-size:0.95em;'>{item['namn']}</b><br><span style='font-size:0.75em; opacity:0.7;'>S{item['steg']} • {item['nasta_repetition']}</span></div>", unsafe_allow_html=True)
-                with col_done:
-                    st.button("✅", key=f"done_kommande_{item['id']}", on_click=mark_done, args=(item['id'],), help="Kör i förväg", use_container_width=True)
-                with col_fail:
-                    st.button("🔄", key=f"fail_kommande_{item['id']}", on_click=mark_failed, args=(item['id'],), help="Återställ (Steg 1)", use_container_width=True)
+                st.markdown(f"<div style='display:flex; justify-content:space-between; align-items:center; margin-bottom: 8px;'><b style='font-size:1.05em;'>{item['namn']}</b><span style='font-size:0.8em; color:var(--text-color); opacity:0.7;'>S{item['steg']} • {item['nasta_repetition']}</span></div>", unsafe_allow_html=True)
+                
+                action = st.segmented_control("Åtgärd", ["✅ Kör nu", "🔄 Återställ"], key=f"act_kom_{item['id']}", label_visibility="collapsed")
+                
+                if action:
+                    if action == "✅ Kör nu":
+                        mark_done(item['id'])
+                    elif action == "🔄 Återställ":
+                        mark_failed(item['id'])
+                    
+                    st.session_state[f"act_kom_{item['id']}"] = None
+                    st.rerun()
 
 # --- FLIK 3: ÖVERSIKT OCH HANTERING ---
 with tab_hantera:
@@ -227,10 +214,10 @@ with tab_hantera:
         
     for item in filtered_data:
         with st.container(border=True):
-            col_text, col_steg, col_knapp = st.columns([3, 4, 1])
-            with col_text:
-                st.markdown(f"<div style='line-height:1.2; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;'><b style='font-size:0.9em;'>{item['namn']}</b><br><span style='font-size:0.7em; opacity:0.7;'>{item['nasta_repetition']}</span></div>", unsafe_allow_html=True)
-            with col_steg:
+            st.markdown(f"<div style='display:flex; justify-content:space-between; align-items:center; margin-bottom: 8px;'><b style='font-size:1.05em;'>{item['namn']}</b><span style='font-size:0.8em; color:var(--text-color); opacity:0.7;'>Nästa: {item['nasta_repetition']}</span></div>", unsafe_allow_html=True)
+            
+            c1, c2 = st.columns([5, 1], vertical_alignment="center")
+            with c1:
                 nytt_steg = st.segmented_control("St", options=[1, 2, 3, 4, 5], default=int(item['steg']), key=f"seg_{item['id']}", label_visibility="collapsed")
                 if nytt_steg and nytt_steg != int(item['steg']):
                     item['steg'] = nytt_steg
@@ -238,7 +225,7 @@ with tab_hantera:
                     st.session_state[f"seg_{item['id']}"] = nytt_steg
                     save_to_db(st.session_state.db_data)
                     st.rerun()
-            with col_knapp:
+            with c2:
                 st.button("🗑️", key=f"del_{item['id']}", on_click=delete_item, args=(item['id'],), help="Ta bort", use_container_width=True)
 
 # --- FLIK 4: DIAGRAM ---
