@@ -173,7 +173,6 @@ st.markdown(html_kod, unsafe_allow_html=True)
 # --- HUVUDAPP ---
 today_str = str(datetime.date.today())
 
-# Ny flik "Rutnät" tillagd i listan
 tab_dagens, tab_kommande, tab_hantera, tab_diagram, tab_rutnat, tab_lagg_till = st.tabs([
     "🎯 Idag", "⏳ Komm.", "📚 Översikt", "📊 Graf", "🔲 Rutnät", "➕ Nytt"
 ])
@@ -277,16 +276,14 @@ with tab_diagram:
                 for _, rad in group.iterrows():
                     st.markdown(f"- **{rad['namn']}** (S{rad['steg']})")
 
-# --- FLIK 5: RUTNÄT (NY) ---
+# --- FLIK 5: RUTNÄT MED NAMN (UPPDATERAD) ---
 with tab_rutnat:
     st.markdown("<div style='font-size: 0.85em; color: #666; text-transform: uppercase; margin-bottom: 10px;'>Hela Koranen (1-114)</div>", unsafe_allow_html=True)
     
-    # Skapa en ordlista för snabb uppslagning av vilket steg ett kapitel ligger på
     surah_steg_map = {d['namn']: int(d['steg']) for d in st.session_state.db_data}
     
-    # Samma färgschema som används överallt annars i appen
     farger = {
-        0: "rgba(128, 128, 128, 0.15)", # Ej tillagd (Genomskinlig grå)
+        0: "rgba(128, 128, 128, 0.15)", 
         1: "#ff4b4b",
         2: "#ffa500",
         3: "#ffd700",
@@ -294,26 +291,43 @@ with tab_rutnat:
         5: "#28A745"
     }
     
-    # Skapa CSS Grid-containern
-    html_grid = "<div style='display: grid; grid-template-columns: repeat(auto-fill, minmax(40px, 1fr)); gap: 6px;'>"
+    # Gjort rutorna lite bredare (70px) för att texten ska få plats bättre
+    html_grid = "<div style='display: grid; grid-template-columns: repeat(auto-fill, minmax(70px, 1fr)); gap: 8px;'>"
     
-    # Bygg en HTML-låda för vart och ett av de 114 kapitlen
-    for index, surah_namn in enumerate(SURAH_LISTA):
+    for index, surah_fullt_namn in enumerate(SURAH_LISTA):
         nummer = index + 1
-        steg = surah_steg_map.get(surah_namn, 0) # Får 0 om den inte finns i databasen
+        ren_namn = raw_surah_names[index] # Ren text, t.ex. "Al-Fatihah" utan siffra
+        steg = surah_steg_map.get(surah_fullt_namn, 0) 
         farg = farger[steg]
         
-        # Anpassa textfärgen så den syns oavsett dark/light mode
         text_color = "white" if steg > 0 else "var(--text-color)"
         opacity = "1" if steg > 0 else "0.5"
-        tooltip = f"{surah_namn} (Steg {steg})" if steg > 0 else f"{surah_namn} (Ej tillagd)"
+        tooltip = f"{surah_fullt_namn} (Steg {steg})" if steg > 0 else f"{surah_fullt_namn} (Ej tillagd)"
         
-        # En enskild ruta i rutnätet
-        html_grid += f"<div title='{tooltip}' style='background-color: {farg}; color: {text_color}; opacity: {opacity}; text-align: center; border-radius: 4px; padding: 8px 0; font-size: 0.85em; font-weight: bold; cursor: help; border: 1px solid var(--border-color);'>{nummer}</div>"
+        # HTML för varje kvadrat. Flexbox centererar allt. Radbrytning hanteras av word-wrap.
+        html_grid += f"""
+        <div title='{tooltip}' style='
+            background-color: {farg}; 
+            color: {text_color}; 
+            opacity: {opacity}; 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            justify-content: center; 
+            aspect-ratio: 1 / 1; 
+            border-radius: 6px; 
+            padding: 4px; 
+            cursor: help; 
+            border: 1px solid var(--border-color);
+            box-sizing: border-box;
+            overflow: hidden;
+        '>
+            <div style='font-size: 1.1em; font-weight: 900; line-height: 1;'>{nummer}</div>
+            <div style='font-size: 0.55em; text-align: center; line-height: 1.1; margin-top: 4px; word-wrap: break-word; width: 100%; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;'>{ren_namn}</div>
+        </div>"""
         
     html_grid += "</div>"
     
-    # Lägg till förklaring (Legend) längst ner
     html_grid += f"""
     <div style='display: flex; justify-content: center; flex-wrap: wrap; gap: 12px; margin-top: 15px; font-size: 0.75em; color: var(--text-color);'>
         <div style='display:flex; align-items:center; gap:4px;'><div style='width:12px; height:12px; background-color:{farger[0]}; border: 1px solid var(--border-color); border-radius:2px;'></div>Ej tillagd</div>
