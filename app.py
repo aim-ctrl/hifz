@@ -80,10 +80,10 @@ def mark_done(item_id):
             d["steg"] = nytt_steg
             d["nasta_repetition"] = str(calculate_next_date(nytt_steg))
             
-            # BUGGFIX: Synkronisera sliderns värde i minnet så den inte tvingar tillbaka steget!
-            slider_key = f"slider_{item_id}"
-            if slider_key in st.session_state:
-                st.session_state[slider_key] = nytt_steg
+            # Synkronisera segmented_control ifall den har renderats
+            seg_key = f"seg_{item_id}"
+            if seg_key in st.session_state:
+                st.session_state[seg_key] = nytt_steg
                 
             st.toast(f"✅ {d['namn']} uppflyttad till steg {nytt_steg}!")
             break
@@ -95,10 +95,10 @@ def mark_failed(item_id):
             d["steg"] = 1
             d["nasta_repetition"] = str(datetime.date.today())
             
-            # BUGGFIX: Synkronisera sliderns värde i minnet
-            slider_key = f"slider_{item_id}"
-            if slider_key in st.session_state:
-                st.session_state[slider_key] = 1
+            # Synkronisera segmented_control
+            seg_key = f"seg_{item_id}"
+            if seg_key in st.session_state:
+                st.session_state[seg_key] = 1
                 
             st.toast(f"🔄 {d['namn']} återställd till steg 1.")
             break
@@ -108,6 +108,16 @@ def delete_item(item_id):
     st.session_state.db_data = [d for d in st.session_state.db_data if str(d['id']) != str(item_id)]
     save_to_db(st.session_state.db_data)
     st.toast("🗑️ Kapitel borttaget.")
+
+# --- GLOBALA STILAR (CSS) ---
+# Detta gör att korten i hela appen får tajtare avstånd vertikalt
+st.markdown('''
+    <style>
+    [data-testid="stVerticalBlock"] > [style*="flex-direction: column;"] > [data-testid="stVerticalBlock"] {
+        gap: 0rem;
+    }
+    </style>
+''', unsafe_allow_html=True)
 
 # --- TOPP: KOMPAKT STATISTIK (HTML/CSS) ---
 total_added = len(st.session_state.db_data)
@@ -160,12 +170,14 @@ with tab_dagens:
     else:
         for item in repetition_queue:
             with st.container(border=True):
-                col1, col2 = st.columns([3, 2])
-                with col1:
+                # Använder vertical_alignment="center" och 3 kolumner för en plattare design
+                col_text, col_done, col_fail = st.columns([5, 2, 2], vertical_alignment="center")
+                with col_text:
                     st.markdown(f"**{item['namn']}**")
                     st.caption(f"Steg: {item['steg']} • Planerad: {item['nasta_repetition']}")
-                with col2:
+                with col_done:
                     st.button("✅ Klar", key=f"done_dagens_{item['id']}", on_click=mark_done, args=(item['id'],), use_container_width=True, type="primary")
+                with col_fail:
                     st.button("🔄 Igen", key=f"fail_dagens_{item['id']}", on_click=mark_failed, args=(item['id'],), use_container_width=True)
 
 # --- FLIK 2: KOMMANDE ---
@@ -178,29 +190,58 @@ with tab_kommande:
     else:
         for item in kommande_queue:
             with st.container(border=True):
-                col1, col2 = st.columns([3, 2])
-                with col1:
+                col_text, col_done, col_fail = st.columns([5, 2, 2], vertical_alignment="center")
+                with col_text:
                     st.markdown(f"**{item['namn']}**")
                     st.caption(f"Steg: {item['steg']} • Planerad: {item['nasta_repetition']}")
-                with col2:
-                    st.button("✅ Kör nu", key=f"done_kommande_{item['id']}", on_click=mark_done, args=(item['id'],), use_container_width=True)
+                with col_done:
+                    st.button("✅ Nu", key=f"done_kommande_{item['id']}", on_click=mark_done, args=(item['id'],), use_container_width=True)
+                with col_fail:
                     st.button("🔄 Igen", key=f"fail_kommande_{item['id']}", on_click=mark_failed, args=(item['id'],), use_container_width=True)
 
 # --- FLIK 3: ÖVERSIKT OCH HANTERING ---
 with tab_hantera:
     search_term = st.text_input("🔍 Sök Surah...", "")
     filtered_data = [d for d in st.session_state.db_data if search_term.lower() in d['namn'].lower()]
-    filtered_data.sort(key=lambda x: x['namn'])
+    
+    # Sortera numeriskt baserat på siffran innan punkten
+    def get_sort_key(item):
+        try:
+            return int(item['namn'].split('.')[0])
+        except ValueError:
+            return 999 
+            
+    filtered_data.sort(key=get_sort_key)
+        
+    if not filtered_data:
+        st.info("Inga kapitel hittades.")
         
     for item in filtered_data:
-        with st.expander(f"{item['namn']} - Steg {item['steg']} (Nästa: {item['nasta_repetition']})"):
-            nytt_steg = st.slider("Ändra steg manuellt", 1, 5, int(item['steg']), key=f"slider_{item['id']}")
-            if nytt_steg != int(item['steg']):
-                item['steg'] = nytt_steg
-                item['nasta_repetition'] = str(calculate_next_date(nytt_steg))
-                save_to_db(st.session_state.db_data)
-                st.rerun()
-            st.button("🗑️ Ta bort", key=f"del_{item['id']}", on_click=delete_item, args=(item['id'],))
+        with st.container(border=True):
+            col_text, col_steg, col_knapp = st.columns([4, 5, 1], vertical_alignment="center")
+            
+            with col_text:
+                st.markdown(f"**{item['namn']}**")
+                st.caption(f"🗓 Nästa: {item['nasta_repetition']}")
+            
+            with col_steg:
+                nytt_steg = st.segmented_control(
+                    "Ändra steg", 
+                    options=[1, 2, 3, 4, 5], 
+                    default=int(item['steg']), 
+                    key=f"seg_{item['id']}",
+                    label_visibility="collapsed"
+                )
+                
+                if nytt_steg and nytt_steg != int(item['steg']):
+                    item['steg'] = nytt_steg
+                    item['nasta_repetition'] = str(calculate_next_date(nytt_steg))
+                    st.session_state[f"seg_{item['id']}"] = nytt_steg
+                    save_to_db(st.session_state.db_data)
+                    st.rerun()
+                    
+            with col_knapp:
+                st.button("🗑️", key=f"del_{item['id']}", on_click=delete_item, args=(item['id'],), help="Ta bort", use_container_width=True)
 
 # --- FLIK 4: DIAGRAM ---
 with tab_diagram:
