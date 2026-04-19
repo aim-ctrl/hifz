@@ -80,7 +80,6 @@ def mark_done(item_id):
             d["steg"] = nytt_steg
             d["nasta_repetition"] = str(calculate_next_date(nytt_steg))
             
-            # Synka Flik 3 widget i bakgrunden
             seg_key = f"seg_{item_id}"
             if seg_key in st.session_state:
                 st.session_state[seg_key] = nytt_steg
@@ -97,7 +96,6 @@ def mark_failed(item_id):
             d["steg"] = 1
             d["nasta_repetition"] = str(datetime.date.today())
             
-            # Synka Flik 3 widget i bakgrunden
             seg_key = f"seg_{item_id}"
             if seg_key in st.session_state:
                 st.session_state[seg_key] = 1
@@ -111,7 +109,7 @@ def delete_item(item_id):
     save_to_db(st.session_state.db_data)
     st.toast("🗑️ Kapitel borttaget.")
 
-# --- CALLBACKS (LÖSNINGEN PÅ BUGGEN) ---
+# --- CALLBACKS ---
 def action_callback(item_id, widget_key):
     val = st.session_state[widget_key]
     if val:
@@ -119,7 +117,6 @@ def action_callback(item_id, widget_key):
             mark_done(item_id)
         elif "🔄" in val:
             mark_failed(item_id)
-        # Säkert att nollställa inuti en callback!
         st.session_state[widget_key] = None
 
 def step_change_callback(item_id, widget_key):
@@ -135,11 +132,9 @@ def step_change_callback(item_id, widget_key):
 # --- SÄKER, STILREN CSS ---
 st.markdown('''
     <style>
-    /* Slimma ner kortens utfyllnad (padding) inuti */
     [data-testid="stVerticalBlockBorderWrapper"] > div {
         padding: 0.6rem !important;
     }
-    /* Minska gapet mellan rubrik och knappar inuti kortet */
     [data-testid="stVerticalBlock"] > [style*="flex-direction: column;"] > [data-testid="stVerticalBlock"] {
         gap: 0.2rem !important;
     }
@@ -178,8 +173,9 @@ st.markdown(html_kod, unsafe_allow_html=True)
 # --- HUVUDAPP ---
 today_str = str(datetime.date.today())
 
-tab_dagens, tab_kommande, tab_hantera, tab_diagram, tab_lagg_till = st.tabs([
-    "🎯 Idag", "⏳ Komm.", "📚 Översikt", "📊 Graf", "➕ Nytt"
+# Ny flik "Rutnät" tillagd i listan
+tab_dagens, tab_kommande, tab_hantera, tab_diagram, tab_rutnat, tab_lagg_till = st.tabs([
+    "🎯 Idag", "⏳ Komm.", "📚 Översikt", "📊 Graf", "🔲 Rutnät", "➕ Nytt"
 ])
 
 # --- FLIK 1: DAGENS PASS ---
@@ -193,15 +189,10 @@ with tab_dagens:
         for item in repetition_queue:
             with st.container(border=True):
                 st.markdown(f"<div style='display:flex; justify-content:space-between; align-items:center; margin-bottom: 8px;'><b style='font-size:1.05em;'>{item['namn']}</b><span style='font-size:0.8em; color:var(--text-color); opacity:0.7;'>S{item['steg']} • {item['nasta_repetition']}</span></div>", unsafe_allow_html=True)
-                
                 key_name = f"act_dag_{item['id']}"
                 st.segmented_control(
-                    "Åtgärd", 
-                    ["✅ Klar", "🔄 Igen"], 
-                    key=key_name, 
-                    label_visibility="collapsed",
-                    on_change=action_callback,
-                    args=(item['id'], key_name)
+                    "Åtgärd", ["✅ Klar", "🔄 Igen"], key=key_name, label_visibility="collapsed",
+                    on_change=action_callback, args=(item['id'], key_name)
                 )
 
 # --- FLIK 2: KOMMANDE ---
@@ -215,15 +206,10 @@ with tab_kommande:
         for item in kommande_queue:
             with st.container(border=True):
                 st.markdown(f"<div style='display:flex; justify-content:space-between; align-items:center; margin-bottom: 8px;'><b style='font-size:1.05em;'>{item['namn']}</b><span style='font-size:0.8em; color:var(--text-color); opacity:0.7;'>S{item['steg']} • {item['nasta_repetition']}</span></div>", unsafe_allow_html=True)
-                
                 key_name = f"act_kom_{item['id']}"
                 st.segmented_control(
-                    "Åtgärd", 
-                    ["✅ Kör nu", "🔄 Återställ"], 
-                    key=key_name, 
-                    label_visibility="collapsed",
-                    on_change=action_callback,
-                    args=(item['id'], key_name)
+                    "Åtgärd", ["✅ Kör nu", "🔄 Återställ"], key=key_name, label_visibility="collapsed",
+                    on_change=action_callback, args=(item['id'], key_name)
                 )
 
 # --- FLIK 3: ÖVERSIKT OCH HANTERING ---
@@ -242,21 +228,14 @@ with tab_hantera:
     for item in filtered_data:
         with st.container(border=True):
             st.markdown(f"<div style='display:flex; justify-content:space-between; align-items:center; margin-bottom: 8px;'><b style='font-size:1.05em;'>{item['namn']}</b><span style='font-size:0.8em; color:var(--text-color); opacity:0.7;'>Nästa: {item['nasta_repetition']}</span></div>", unsafe_allow_html=True)
-            
             c1, c2 = st.columns([5, 1], vertical_alignment="center")
             with c1:
                 key_name = f"seg_{item['id']}"
-                # Sätt minnet innan widgeten skapas så att värdet alltid stämmer
                 if key_name not in st.session_state:
                     st.session_state[key_name] = int(item['steg'])
-                    
                 st.segmented_control(
-                    "St", 
-                    options=[1, 2, 3, 4, 5], 
-                    key=key_name, 
-                    label_visibility="collapsed",
-                    on_change=step_change_callback,
-                    args=(item['id'], key_name)
+                    "St", options=[1, 2, 3, 4, 5], key=key_name, label_visibility="collapsed",
+                    on_change=step_change_callback, args=(item['id'], key_name)
                 )
             with c2:
                 st.button("🗑️", key=f"del_{item['id']}", on_click=delete_item, args=(item['id'],), help="Ta bort", use_container_width=True)
@@ -298,7 +277,57 @@ with tab_diagram:
                 for _, rad in group.iterrows():
                     st.markdown(f"- **{rad['namn']}** (S{rad['steg']})")
 
-# --- FLIK 5: LÄGG TILL ---
+# --- FLIK 5: RUTNÄT (NY) ---
+with tab_rutnat:
+    st.markdown("<div style='font-size: 0.85em; color: #666; text-transform: uppercase; margin-bottom: 10px;'>Hela Koranen (1-114)</div>", unsafe_allow_html=True)
+    
+    # Skapa en ordlista för snabb uppslagning av vilket steg ett kapitel ligger på
+    surah_steg_map = {d['namn']: int(d['steg']) for d in st.session_state.db_data}
+    
+    # Samma färgschema som används överallt annars i appen
+    farger = {
+        0: "rgba(128, 128, 128, 0.15)", # Ej tillagd (Genomskinlig grå)
+        1: "#ff4b4b",
+        2: "#ffa500",
+        3: "#ffd700",
+        4: "#4DA3FF",
+        5: "#28A745"
+    }
+    
+    # Skapa CSS Grid-containern
+    html_grid = "<div style='display: grid; grid-template-columns: repeat(auto-fill, minmax(40px, 1fr)); gap: 6px;'>"
+    
+    # Bygg en HTML-låda för vart och ett av de 114 kapitlen
+    for index, surah_namn in enumerate(SURAH_LISTA):
+        nummer = index + 1
+        steg = surah_steg_map.get(surah_namn, 0) # Får 0 om den inte finns i databasen
+        farg = farger[steg]
+        
+        # Anpassa textfärgen så den syns oavsett dark/light mode
+        text_color = "white" if steg > 0 else "var(--text-color)"
+        opacity = "1" if steg > 0 else "0.5"
+        tooltip = f"{surah_namn} (Steg {steg})" if steg > 0 else f"{surah_namn} (Ej tillagd)"
+        
+        # En enskild ruta i rutnätet
+        html_grid += f"<div title='{tooltip}' style='background-color: {farg}; color: {text_color}; opacity: {opacity}; text-align: center; border-radius: 4px; padding: 8px 0; font-size: 0.85em; font-weight: bold; cursor: help; border: 1px solid var(--border-color);'>{nummer}</div>"
+        
+    html_grid += "</div>"
+    
+    # Lägg till förklaring (Legend) längst ner
+    html_grid += f"""
+    <div style='display: flex; justify-content: center; flex-wrap: wrap; gap: 12px; margin-top: 15px; font-size: 0.75em; color: var(--text-color);'>
+        <div style='display:flex; align-items:center; gap:4px;'><div style='width:12px; height:12px; background-color:{farger[0]}; border: 1px solid var(--border-color); border-radius:2px;'></div>Ej tillagd</div>
+        <div style='display:flex; align-items:center; gap:4px;'><div style='width:12px; height:12px; background-color:{farger[1]}; border-radius:2px;'></div>Steg 1</div>
+        <div style='display:flex; align-items:center; gap:4px;'><div style='width:12px; height:12px; background-color:{farger[2]}; border-radius:2px;'></div>Steg 2</div>
+        <div style='display:flex; align-items:center; gap:4px;'><div style='width:12px; height:12px; background-color:{farger[3]}; border-radius:2px;'></div>Steg 3</div>
+        <div style='display:flex; align-items:center; gap:4px;'><div style='width:12px; height:12px; background-color:{farger[4]}; border-radius:2px;'></div>Steg 4</div>
+        <div style='display:flex; align-items:center; gap:4px;'><div style='width:12px; height:12px; background-color:{farger[5]}; border-radius:2px;'></div>Steg 5</div>
+    </div>
+    """
+    
+    st.markdown(html_grid, unsafe_allow_html=True)
+
+# --- FLIK 6: LÄGG TILL ---
 with tab_lagg_till:
     metod = st.segmented_control("Välj metod", ["Enskilt", "Bulk (Flera)"], default="Enskilt")
     if metod == "Enskilt":
