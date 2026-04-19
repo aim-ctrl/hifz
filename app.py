@@ -3,7 +3,6 @@ import requests
 import datetime
 import uuid
 import pandas as pd
-from collections import Counter
 
 # --- KONFIGURATION & SECRETS ---
 st.set_page_config(page_title="Quran Repetition", page_icon="📖", layout="centered")
@@ -45,7 +44,7 @@ SURAH_LISTA = [f"{i}. {name}" for i, name in enumerate(raw_surah_names, 1)]
 def calculate_next_date(current_step):
     today = datetime.date.today()
     intervals = {1: 0, 2: 1, 3: 3, 4: 7, 5: 30}
-    days = intervals.get(current_step, 1)
+    days = intervals.get(int(current_step), 1) # Säkerställ heltal här också
     return today + datetime.timedelta(days=days)
 
 @st.cache_data(ttl=3600)
@@ -72,8 +71,11 @@ if "db_data" not in st.session_state:
 # --- CALLBACKS FÖR KNAPPAR ---
 def mark_done(item_id):
     for d in st.session_state.db_data:
-        if d['id'] == item_id:
-            d["steg"] = min(d["steg"] + 1, 5)
+        # BUGGFIX: Tvinga item_id till sträng ifall formaten skiljer sig
+        if str(d['id']) == str(item_id):
+            # BUGGFIX: Tvinga 'steg' till integer innan addition så undviker vi TypeError
+            nuvarande_steg = int(d.get("steg", 1))
+            d["steg"] = min(nuvarande_steg + 1, 5)
             d["nasta_repetition"] = str(calculate_next_date(d["steg"]))
             st.toast(f"✅ {d['namn']} uppflyttad till steg {d['steg']}!")
             break
@@ -81,7 +83,7 @@ def mark_done(item_id):
 
 def mark_failed(item_id):
     for d in st.session_state.db_data:
-        if d['id'] == item_id:
+        if str(d['id']) == str(item_id):
             d["steg"] = 1
             d["nasta_repetition"] = str(datetime.date.today())
             st.toast(f"🔄 {d['namn']} återställd till steg 1.")
@@ -89,7 +91,7 @@ def mark_failed(item_id):
     save_to_db(st.session_state.db_data)
 
 def delete_item(item_id):
-    st.session_state.db_data = [d for d in st.session_state.db_data if d['id'] != item_id]
+    st.session_state.db_data = [d for d in st.session_state.db_data if str(d['id']) != str(item_id)]
     save_to_db(st.session_state.db_data)
     st.toast("🗑️ Kapitel borttaget.")
 
@@ -97,12 +99,10 @@ def delete_item(item_id):
 total_added = len(st.session_state.db_data)
 steg_counts = {1: 0, 2: 0, 3: 0, 4: 0, 5: 0}
 for d in st.session_state.db_data:
-    steg_counts[d.get('steg', 1)] += 1
+    steg_counts[int(d.get('steg', 1))] += 1
 
 progress_pct = int((total_added / 114) * 100) if total_added > 0 else 0
 
-# All kod är vänsterjusterad för att inte tolkas som ett "kodblock" av Markdown
-# Färgerna är utbytta mot Streamlits inbyggda CSS-variabler för att stödja Dark Mode
 html_kod = f"""<div style="background-color: var(--secondary-background-color); padding: 12px; border-radius: 12px; border: 1px solid var(--border-color); margin-bottom: 10px;">
 <div style="display: flex; justify-content: space-around; align-items: center; margin-bottom: 8px;">
 <div style="text-align: center;">
@@ -181,7 +181,7 @@ with tab_hantera:
     for item in filtered_data:
         with st.expander(f"{item['namn']} - Steg {item['steg']} (Nästa: {item['nasta_repetition']})"):
             nytt_steg = st.slider("Ändra steg manuellt", 1, 5, int(item['steg']), key=f"slider_{item['id']}")
-            if nytt_steg != item['steg']:
+            if nytt_steg != int(item['steg']):
                 item['steg'] = nytt_steg
                 item['nasta_repetition'] = str(calculate_next_date(nytt_steg))
                 save_to_db(st.session_state.db_data)
@@ -190,64 +190,65 @@ with tab_hantera:
 
 # --- FLIK 4: DIAGRAM ---
 with tab_diagram:
-    st.write("Visuell arbetsbelastning och detaljerad planering framöver:")
+    st.write("Visuell arbetsbelastning uppdelad i steg:")
     
     if not st.session_state.db_data:
         st.info("Lägg till kapitel för att se din planering!")
     else:
-        # 1. Konvertera databasen till en Pandas DataFrame för enkel datahantering
+        # NY FUNKTIONALITET: Bygg DataFrame för ett Stacked Bar Chart
         df = pd.DataFrame(st.session_state.db_data)
         df['nasta_repetition'] = pd.to_datetime(df['nasta_repetition']).dt.date
+        df['steg'] = df['steg'].astype(int) # Viktigt att ha steg som integers
         
         idag = datetime.date.today()
-        # Hitta det datum som ligger längst fram i tiden (om det är äldre än idag, använd idag + 7 dagar som baseline)
         max_datum = df['nasta_repetition'].max()
         if pd.isna(max_datum) or max_datum < idag:
             max_datum = idag + datetime.timedelta(days=7)
             
-        # 2. Skapa en komplett tidslinje (inkluderar alla noll-dagar)
-        alla_dagar = pd.date_range(start=idag, end=max_datum)
-        planering = []
+        alla_dagar = pd.date_range(start=idag, end=max_datum).date
         
-        for dag in alla_dagar:
-            dagens_datum = dag.date()
-            # Plocka ut alla kapitel för just denna dag
-            dagens_kapitel = df[df['nasta_repetition'] == dagens_datum]
-            antal = len(dagens_kapitel)
-            
-            # Spara namnen i en lista
-            namn_lista = dagens_kapitel['namn'].tolist() if antal > 0 else []
-            
-            planering.append({
-                "Datum": str(dagens_datum),
-                "Antal kapitel": antal,
-                "Kapitel": namn_lista
-            })
-            
-        df_planering = pd.DataFrame(planering)
+        # Gruppera datan per datum OCH steg. 'unstack' skapar kolumner för varje steg.
+        chart_data = df.groupby(['nasta_repetition', 'steg']).size().unstack(fill_value=0)
         
-        # 3. Rita upp diagrammet (Staplar visar nu även 0-dagar tack vare vår kompletta tidslinje)
-        st.bar_chart(df_planering.set_index("Datum")["Antal kapitel"], color="#007BFF")
+        # Fyll i saknade datum så vi får en obruten tidslinje
+        chart_data = chart_data.reindex(alla_dagar, fill_value=0)
         
-        st.divider() # En snygg linje som separerar grafen från texten
+        # Se till att alla kolumner (1 till 5) existerar, även om ingen är på ett visst steg just nu
+        for i in range(1, 6):
+            if i not in chart_data.columns:
+                chart_data[i] = 0
+                
+        # Sortera kolumnerna och byt namn till text för att legenden i diagrammet ska se bra ut
+        chart_data = chart_data[[1, 2, 3, 4, 5]]
+        chart_data.columns = ["Steg 1", "Steg 2", "Steg 3", "Steg 4", "Steg 5"]
         
-        # 4. Detaljerad text-vy för vad som faktiskt ska läsas
+        # Färgkodning: Röd (Steg 1) till Grön (Steg 5)
+        steg_farger = ["#ff4b4b", "#ffa500", "#ffd700", "#4DA3FF", "#28A745"]
+        
+        # Genom att skicka in flera kolumner blir det per automatik ett stacked bar chart
+        st.bar_chart(chart_data, color=steg_farger)
+        
+        st.divider() 
+        
+        # Detaljerad text-vy förbättrad med Pandas
         st.markdown("<div style='font-size: 0.85em; color: #666; text-transform: uppercase; margin-bottom: 8px;'>📅 Vilka kapitel gäller?</div>", unsafe_allow_html=True)
         
-        # Filtrera bort noll-dagarna från listvyn så den hålls kompakt
-        dagar_med_krav = df_planering[df_planering["Antal kapitel"] > 0]
+        dagar_med_krav = df.groupby('nasta_repetition')
         
-        if dagar_med_krav.empty:
+        if dagar_med_krav.ngroups == 0:
             st.success("Inga kapitel schemalagda framöver!")
         else:
-            for _, rad in dagar_med_krav.iterrows():
-                # En liten varningsemoji om datumet har passerats (försenade)
-                is_past = rad['Datum'] < str(idag)
+            for datum, group in dagar_med_krav:
+                antal = len(group)
+                if antal == 0: continue
+                
+                is_past = datum < idag
                 status_icon = "⚠️ Försenat:" if is_past else "📍"
                 
-                with st.expander(f"{status_icon} {rad['Datum']} ({rad['Antal kapitel']} st)"):
-                    for kap in rad['Kapitel']:
-                        st.markdown(f"- **{kap}**")
+                with st.expander(f"{status_icon} {datum} ({antal} st)"):
+                    for _, rad in group.iterrows():
+                        # Visar även vilket steg varje kapitel befinner sig i listan
+                        st.markdown(f"- **{rad['namn']}** (Steg {rad['steg']})")
 
 # --- FLIK 5: LÄGG TILL ---
 with tab_lagg_till:
