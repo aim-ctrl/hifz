@@ -259,6 +259,7 @@ juz_fully_mastered = sum(
     1 for juz_num in range(1, 31)
     if JUZ_SURAHS.get(juz_num) and all(surah_step.get(s, 0) == 5 for s in JUZ_SURAHS[juz_num])
 )
+equiv_juz = round(mastered_verses * 30 / TOTAL_VERSES, 1) if mastered_verses else 0
 
 # --- TABS ---
 tab_dash, tab_idag, tab_progress, tab_hantera, tab_lagg = st.tabs([
@@ -361,6 +362,25 @@ with tab_dash:
 <div style="background:var(--secondary-background-color);border-radius:10px;border:1px solid var(--border-color);padding:12px;margin-bottom:10px;">
   <div style="font-size:0.65em;opacity:0.5;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:4px;">Fördelning per steg</div>
   {bars_html}
+</div>
+""", unsafe_allow_html=True)
+
+    # Juz-ekvivalent
+    st.markdown(f"""
+<div style="background:var(--secondary-background-color);border-radius:10px;border:1px solid var(--border-color);padding:10px 12px;margin-bottom:10px;">
+  <div style="font-size:0.65em;opacity:0.5;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:6px;">Memorerade verser i juz</div>
+  <div style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;">
+    <div>
+      <span style="font-size:1.5em;font-weight:800;color:#1a7a4a;">{juz_fully_mastered}</span>
+      <span style="font-size:0.7em;opacity:0.5;margin-left:2px;">kompletta juz</span>
+    </div>
+    <div style="font-size:0.8em;opacity:0.4;">+</div>
+    <div>
+      <span style="font-size:1.5em;font-weight:800;color:#b7950b;">{equiv_juz}</span>
+      <span style="font-size:0.7em;opacity:0.5;margin-left:2px;">juz totalt (vers-ekvivalent)</span>
+    </div>
+  </div>
+  <div style="font-size:0.6em;opacity:0.4;margin-top:4px;">{mastered_verses:,} av {TOTAL_VERSES:,} verser · {TOTAL_VERSES//30} verser/juz i snitt</div>
 </div>
 """, unsafe_allow_html=True)
 
@@ -507,17 +527,29 @@ with tab_progress:
         surahs_here = juz_surah_ordered.get(juz_num, [])
         if not surahs_here:
             continue
-        mastered_j = sum(1 for (s, _) in surahs_here if surah_step.get(s, 0) == 5)
-        total_j = len(surahs_here)
-        bar_w = int((mastered_j / total_j) * 100) if total_j else 0
+
+        total_v = sum(SURAH_VERSES[s - 1] for (s, _) in surahs_here)
+        verses_per_step = {i: 0 for i in range(1, 6)}
+        for (s, _) in surahs_here:
+            st_val = surah_step.get(s, 0)
+            if st_val > 0:
+                verses_per_step[st_val] += SURAH_VERSES[s - 1]
+        mastered_v = verses_per_step[5]
+
+        # Stacked bar segments per step
+        seg_colors = {1: "#c0392b", 2: "#d68910", 3: "#b7950b", 4: "#1a6fa8", 5: "#1a7a4a"}
+        segments = ""
+        for step_i in range(1, 6):
+            w = round(verses_per_step[step_i] / total_v * 100, 1) if total_v else 0
+            if w > 0:
+                segments += f"<div style='width:{w}%;background:{seg_colors[step_i]};height:100%;'></div>"
 
         grid_html += (
             f"<div style='margin-bottom:11px;'>"
             f"<div style='display:flex;align-items:center;gap:7px;margin-bottom:4px;'>"
             f"<span style='font-size:0.65em;font-weight:700;opacity:0.45;white-space:nowrap;'>Juz {juz_num}</span>"
-            f"<div style='flex:1;height:3px;background:var(--border-color);border-radius:2px;'>"
-            f"<div style='width:{bar_w}%;height:3px;background:#1a7a4a;border-radius:2px;'></div></div>"
-            f"<span style='font-size:0.58em;opacity:0.4;'>{mastered_j}/{total_j}</span>"
+            f"<div style='flex:1;height:4px;background:rgba(128,128,128,0.15);border-radius:2px;display:flex;overflow:hidden;'>{segments}</div>"
+            f"<span style='font-size:0.58em;opacity:0.4;'>{mastered_v}/{total_v}v</span>"
             f"</div>"
             f"<div style='display:grid;grid-template-columns:repeat(auto-fill,minmax(50px,1fr));gap:4px;'>"
         )
