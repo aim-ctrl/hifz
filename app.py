@@ -89,11 +89,42 @@ SURAH_TO_JUZ = [
     30, 30, 30, 30
 ]
 
-JUZ_SURAHS = {}
-for idx, juz in enumerate(SURAH_TO_JUZ):
-    JUZ_SURAHS.setdefault(juz, []).append(idx + 1)
-JUZ_SURAHS[2] = [2]  # Al-Baqarah spans juz 2
-JUZ_SURAHS[5] = [4]  # An-Nisa spans juz 5
+# Exact verse distribution for surahs that span multiple juz.
+# All others sit fully in the juz given by SURAH_TO_JUZ.
+# Verified against standard Hafs juz boundaries.
+SURAH_JUZ_SPLIT = {
+    2:  {1: 141, 2: 111, 3:  34},
+    3:  {3:  91, 4: 109},
+    4:  {4:  23, 5: 124, 6:  29},
+    5:  {6:  81, 7:  39},
+    6:  {7: 110, 8:  55},
+    7:  {8:  87, 9: 119},
+    8:  {9:  40, 10: 35},
+    9:  {10: 92, 11: 37},
+    11: {11:  5, 12: 118},
+    12: {12: 52, 13:  59},
+    18: {15: 74, 16:  36},
+    25: {18: 20, 19:  57},
+    27: {19: 55, 20:  38},
+    29: {20: 45, 21:  24},
+    33: {21: 30, 22:  43},
+    36: {22: 27, 23:  56},
+    39: {23: 31, 24:  44},
+    41: {24: 46, 25:   8},
+    51: {26: 30, 27:  30},
+}
+
+# Word contribution of each surah to each juz (proportional to verse split)
+JUZ_SURAH_WORDS = {j: {} for j in range(1, 31)}
+for _s in range(1, 115):
+    if _s in SURAH_JUZ_SPLIT:
+        for _j, _v in SURAH_JUZ_SPLIT[_s].items():
+            JUZ_SURAH_WORDS[_j][_s] = round(SURAH_WORDS[_s - 1] * _v / SURAH_VERSES[_s - 1])
+    else:
+        JUZ_SURAH_WORDS[SURAH_TO_JUZ[_s - 1]][_s] = SURAH_WORDS[_s - 1]
+
+JUZ_TOTAL_WORDS = {j: sum(v.values()) for j, v in JUZ_SURAH_WORDS.items()}
+JUZ_SURAHS = {j: list(sw.keys()) for j, sw in JUZ_SURAH_WORDS.items()}
 
 STEP_COLORS = {
     0: "rgba(128,128,128,0.12)",
@@ -477,15 +508,16 @@ with tab_progress:
     )
     juz_html = "<div style='display:grid;grid-template-columns:repeat(6,1fr);gap:5px;margin-bottom:8px;'>"
     for juz_num in range(1, 31):
-        surahs = JUZ_SURAHS.get(juz_num, [])
-        total_j = len(surahs)
-        mastered_j = sum(1 for s in surahs if surah_step.get(s, 0) == 5)
-        started_j = sum(1 for s in surahs if surah_step.get(s, 0) > 0)
-        pct = mastered_j / total_j if total_j else 0
+        surahs   = JUZ_SURAHS.get(juz_num, [])
+        total_w  = JUZ_TOTAL_WORDS.get(juz_num, 0)
+        mast_w   = sum(JUZ_SURAH_WORDS[juz_num].get(s, 0) for s in surahs if surah_step.get(s, 0) == 5)
+        start_w  = sum(JUZ_SURAH_WORDS[juz_num].get(s, 0) for s in surahs if surah_step.get(s, 0) > 0)
+        pct      = mast_w / total_w if total_w else 0
+        pct_lbl  = f"{round(pct * 100)}%"
 
-        if mastered_j == total_j and total_j > 0:
+        if mast_w == total_w and total_w > 0:
             bg, border, text_c, sub_c = "#1a7a4a", "#1a7a4a", "white", "rgba(255,255,255,0.75)"
-        elif started_j > 0:
+        elif start_w > 0:
             alpha = round(0.15 + 0.6 * pct, 2)
             bg, border = f"rgba(26,122,74,{alpha})", "rgba(26,122,74,0.5)"
             text_c = sub_c = "var(--text-color)"
@@ -493,13 +525,13 @@ with tab_progress:
             bg, border = "rgba(128,128,128,0.1)", "var(--border-color)"
             text_c = sub_c = "var(--text-color)"
 
-        tooltip = f"Juz {juz_num}: {mastered_j}/{total_j} bemästrade"
+        tooltip = f"Juz {juz_num}: {mast_w:,}/{total_w:,} ord bemästrade ({pct_lbl})"
         juz_html += (
             f"<div title='{tooltip}' style='aspect-ratio:1;border-radius:6px;background:{bg};"
             f"border:1px solid {border};display:flex;flex-direction:column;"
             f"align-items:center;justify-content:center;cursor:default;'>"
             f"<div style='font-size:0.75em;font-weight:800;color:{text_c};line-height:1;'>{juz_num}</div>"
-            f"<div style='font-size:0.47em;color:{sub_c};opacity:0.85;margin-top:1px;'>{mastered_j}/{total_j}</div>"
+            f"<div style='font-size:0.47em;color:{sub_c};opacity:0.85;margin-top:1px;'>{pct_lbl}</div>"
             f"</div>"
         )
     juz_html += "</div>"
@@ -528,28 +560,27 @@ with tab_progress:
         if not surahs_here:
             continue
 
-        total_v = sum(SURAH_VERSES[s - 1] for (s, _) in surahs_here)
-        verses_per_step = {i: 0 for i in range(1, 6)}
-        for (s, _) in surahs_here:
-            st_val = surah_step.get(s, 0)
+        total_w_bar = JUZ_TOTAL_WORDS.get(juz_num, 0)
+        words_per_step = {i: 0 for i in range(1, 6)}
+        for s_num, s_wds in JUZ_SURAH_WORDS.get(juz_num, {}).items():
+            st_val = surah_step.get(s_num, 0)
             if st_val > 0:
-                verses_per_step[st_val] += SURAH_VERSES[s - 1]
-        mastered_v = verses_per_step[5]
+                words_per_step[st_val] += s_wds
+        mastered_w_bar = words_per_step[5]
 
-        # Stacked bar segments per step
         seg_colors = {1: "#c0392b", 2: "#d68910", 3: "#b7950b", 4: "#1a6fa8", 5: "#1a7a4a"}
         segments = ""
         for step_i in range(1, 6):
-            w = round(verses_per_step[step_i] / total_v * 100, 1) if total_v else 0
-            if w > 0:
-                segments += f"<div style='width:{w}%;background:{seg_colors[step_i]};height:100%;'></div>"
+            wp = round(words_per_step[step_i] / total_w_bar * 100, 1) if total_w_bar else 0
+            if wp > 0:
+                segments += f"<div style='width:{wp}%;background:{seg_colors[step_i]};height:100%;'></div>"
 
         grid_html += (
             f"<div style='margin-bottom:11px;'>"
             f"<div style='display:flex;align-items:center;gap:7px;margin-bottom:4px;'>"
             f"<span style='font-size:0.65em;font-weight:700;opacity:0.45;white-space:nowrap;'>Juz {juz_num}</span>"
             f"<div style='flex:1;height:4px;background:rgba(128,128,128,0.15);border-radius:2px;display:flex;overflow:hidden;'>{segments}</div>"
-            f"<span style='font-size:0.58em;opacity:0.4;'>{mastered_v}/{total_v}v</span>"
+            f"<span style='font-size:0.58em;opacity:0.4;'>{mastered_w_bar}/{total_w_bar}ord</span>"
             f"</div>"
             f"<div style='display:grid;grid-template-columns:repeat(auto-fill,minmax(50px,1fr));gap:4px;'>"
         )
