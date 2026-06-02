@@ -405,19 +405,12 @@ with tab_dash:
     # Juz-ekvivalent
     st.markdown(f"""
 <div style="background:var(--secondary-background-color);border-radius:10px;border:1px solid var(--border-color);padding:10px 12px;margin-bottom:10px;">
-  <div style="font-size:0.65em;opacity:0.5;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:6px;">Memorerade ord i juz</div>
-  <div style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;">
-    <div>
-      <span style="font-size:1.5em;font-weight:800;color:#1a7a4a;">{juz_fully_mastered}</span>
-      <span style="font-size:0.7em;opacity:0.5;margin-left:2px;">kompletta juz</span>
-    </div>
-    <div style="font-size:0.8em;opacity:0.4;">≈</div>
-    <div>
-      <span style="font-size:1.5em;font-weight:800;color:#b7950b;">{equiv_juz}</span>
-      <span style="font-size:0.7em;opacity:0.5;margin-left:2px;">juz totalt (ord-ekvivalent)</span>
-    </div>
+  <div style="font-size:0.65em;opacity:0.5;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:6px;">Juz-ekvivalent (ord)</div>
+  <div style="display:flex;align-items:baseline;gap:6px;">
+    <span style="font-size:2em;font-weight:800;color:#b7950b;line-height:1;">{equiv_juz}</span>
+    <span style="font-size:0.75em;opacity:0.55;">juz totalt</span>
   </div>
-  <div style="font-size:0.6em;opacity:0.4;margin-top:4px;">{mastered_words:,} av {TOTAL_WORDS:,} ord memorerade · varje juz väger lika</div>
+  <div style="font-size:0.65em;opacity:0.5;margin-top:3px;">varav <b>{juz_fully_mastered}</b> kompletta · {mastered_words:,} av {TOTAL_WORDS:,} ord</div>
 </div>
 """, unsafe_allow_html=True)
 
