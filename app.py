@@ -1,4 +1,5 @@
 import streamlit as st
+import streamlit.components.v1 as components
 import requests
 import datetime
 import uuid
@@ -181,8 +182,14 @@ st.markdown("""
 #MainMenu { display: none !important; }
 header { display: none !important; }
 footer { display: none !important; }
-[data-testid="stBottom"] { display: none !important; }
+[data-testid="stBottom"] { display: none !important; height: 0 !important; }
 [data-testid="stStatusWidget"] { display: none !important; }
+[data-testid="stFooter"] { display: none !important; }
+.viewerBadge_container__1QSob { display: none !important; }
+.viewerBadge_link__qRIco { display: none !important; }
+#stDecoration { display: none !important; }
+.st-emotion-cache-15hul6a { display: none !important; }
+.st-emotion-cache-1p1m4ay { display: none !important; }
 
 .main .block-container {
     padding-top: 0.25rem !important;
@@ -263,6 +270,28 @@ juz_fully_mastered = sum(
 )
 
 # --- TABS ---
+# JS fall-back: letar aktivt efter bannern och gömmer den
+components.html("""
+<script>
+function nuke() {
+    var selectors = [
+        '[data-testid="stBottom"]',
+        '.viewerBadge_container__1QSob',
+        '.viewerBadge_link__qRIco',
+        'footer',
+        '#stDecoration'
+    ];
+    selectors.forEach(function(s) {
+        var els = parent.document.querySelectorAll(s);
+        els.forEach(function(el) { el.style.cssText = 'display:none!important;height:0!important;'; });
+    });
+}
+nuke();
+setTimeout(nuke, 500);
+setTimeout(nuke, 1500);
+</script>
+""", height=0)
+
 tab_dash, tab_idag, tab_progress, tab_hantera, tab_lagg = st.tabs([
     "🏠 Hem", "🎯 Session", "📊 Progress", "📚 Hantera", "➕ Nytt"
 ])
