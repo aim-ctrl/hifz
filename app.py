@@ -290,7 +290,13 @@ juz_fully_mastered = sum(
     1 for juz_num in range(1, 31)
     if JUZ_SURAHS.get(juz_num) and all(surah_step.get(s, 0) == 5 for s in JUZ_SURAHS[juz_num])
 )
-equiv_juz = round(mastered_verses * 30 / TOTAL_VERSES, 1) if mastered_verses else 0
+# Per-juz fraction: summa av (memorerade ord i juz / totala ord i juz) för varje juz.
+# Komplett juz = exakt 1.0 oavsett juzens storlek, halvt = 0.5 osv.
+equiv_juz = round(sum(
+    sum(JUZ_SURAH_WORDS[j].get(s, 0) for s in JUZ_SURAHS.get(j, []) if surah_step.get(s, 0) == 5)
+    / JUZ_TOTAL_WORDS[j]
+    for j in range(1, 31) if JUZ_TOTAL_WORDS.get(j, 0) > 0
+), 1)
 
 # --- TABS ---
 tab_dash, tab_idag, tab_progress, tab_hantera, tab_lagg = st.tabs([
@@ -411,7 +417,7 @@ with tab_dash:
       <span style="font-size:0.7em;opacity:0.5;margin-left:2px;">juz totalt (ord-ekvivalent)</span>
     </div>
   </div>
-  <div style="font-size:0.6em;opacity:0.4;margin-top:4px;">{mastered_words:,} av {TOTAL_WORDS:,} ord · {TOTAL_WORDS//30:,} ord/juz i snitt</div>
+  <div style="font-size:0.6em;opacity:0.4;margin-top:4px;">{mastered_words:,} av {TOTAL_WORDS:,} ord memorerade · varje juz väger lika</div>
 </div>
 """, unsafe_allow_html=True)
 
