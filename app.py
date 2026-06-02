@@ -178,11 +178,15 @@ def step_change_callback(item_id, key):
 # --- CSS ---
 st.markdown("""
 <style>
-#MainMenu, header, footer { visibility: hidden; }
+#MainMenu { display: none !important; }
+header { display: none !important; }
+footer { display: none !important; }
+[data-testid="stBottom"] { display: none !important; }
+[data-testid="stStatusWidget"] { display: none !important; }
 
 .main .block-container {
-    padding-top: 0.75rem !important;
-    padding-bottom: 76px !important;
+    padding-top: 0.25rem !important;
+    padding-bottom: 80px !important;
     padding-left: 0.9rem !important;
     padding-right: 0.9rem !important;
     max-width: 520px !important;
