@@ -2,91 +2,141 @@ import streamlit as st
 import requests
 import datetime
 import uuid
-import pandas as pd
-import json
 
-# --- KONFIGURATION & SECRETS ---
-st.set_page_config(page_title="Quran Repetition", page_icon="📖", layout="centered")
+st.set_page_config(page_title="Hifz", page_icon="📖", layout="centered")
 
 try:
     BIN_ID = st.secrets["JSONBIN_BIN_ID"]
     API_KEY = st.secrets["JSONBIN_API_KEY"]
 except KeyError:
-    st.error("Saknar secrets! Se till att konfigurera JSONBIN_BIN_ID och JSONBIN_API_KEY i Streamlit Cloud.")
+    st.error("Konfigurera JSONBIN_BIN_ID och JSONBIN_API_KEY i Streamlit secrets.")
     st.stop()
 
 URL = f"https://api.jsonbin.io/v3/b/{BIN_ID}"
 HEADERS = {"X-Master-Key": API_KEY, "Content-Type": "application/json"}
 
+# --- SURAH DATA ---
 raw_surah_names = [
-    "Al-Fatihah", "Al-Baqarah", "Al-Imran", "An-Nisa", "Al-Ma'idah", "Al-An'am", 
-    "Al-A'raf", "Al-Anfal", "At-Tawbah", "Yunus", "Hud", "Yusuf", "Ar-Ra'd", 
-    "Ibrahim", "Al-Hijr", "An-Nahl", "Al-Isra", "Al-Kahf", "Maryam", "Ta-Ha", 
-    "Al-Anbiya", "Al-Hajj", "Al-Mu'minun", "An-Nur", "Al-Furqan", "Ash-Shu'ara", 
-    "An-Naml", "Al-Qasas", "Al-Ankabut", "Ar-Rum", "Luqman", "As-Sajdah", 
-    "Al-Ahzab", "Saba", "Fatir", "Ya-Sin", "As-Saffat", "Sad", "Az-Zumar", 
-    "Ghafir", "Fussilat", "Ash-Shura", "Az-Zukhruf", "Ad-Dukhan", "Al-Jathiyah", 
-    "Al-Ahqaf", "Muhammad", "Al-Fath", "Al-Hujurat", "Qaf", "Adh-Dhariyat", 
-    "At-Tur", "An-Najm", "Al-Qamar", "Ar-Rahman", "Al-Waqi'ah", "Al-Hadid", 
-    "Al-Mujadila", "Al-Hashr", "Al-Mumtahanah", "As-Saff", "Al-Jumu'ah", 
-    "Al-Munafiqun", "At-Taghabun", "At-Talaq", "At-Tahrim", "Al-Mulk", "Al-Qalam", 
-    "Al-Haqqah", "Al-Ma'arij", "Nuh", "Al-Jinn", "Al-Muzzammil", "Al-Muddathir", 
-    "Al-Qiyamah", "Al-Insan", "Al-Mursalat", "An-Naba", "An-Nazi'at", "'Abasa", 
-    "At-Takwir", "Al-Infitar", "Al-Mutaffifin", "Al-Inshiqaq", "Al-Buruj", 
-    "At-Tariq", "Al-A'la", "Al-Ghashiyah", "Al-Fajr", "Al-Balad", "Ash-Shams", 
-    "Al-Layl", "Ad-Duha", "Ash-Sharh", "At-Tin", "Al-'Alaq", "Al-Qadr", 
-    "Al-Bayyinah", "Az-Zalzalah", "Al-'Adiyat", "Al-Qari'ah", "At-Takathur", 
-    "Al-'Asr", "Al-Humazah", "Al-Fil", "Quraysh", "Al-Ma'un", "Al-Kawthar", 
+    "Al-Fatihah", "Al-Baqarah", "Al-Imran", "An-Nisa", "Al-Ma'idah", "Al-An'am",
+    "Al-A'raf", "Al-Anfal", "At-Tawbah", "Yunus", "Hud", "Yusuf", "Ar-Ra'd",
+    "Ibrahim", "Al-Hijr", "An-Nahl", "Al-Isra", "Al-Kahf", "Maryam", "Ta-Ha",
+    "Al-Anbiya", "Al-Hajj", "Al-Mu'minun", "An-Nur", "Al-Furqan", "Ash-Shu'ara",
+    "An-Naml", "Al-Qasas", "Al-Ankabut", "Ar-Rum", "Luqman", "As-Sajdah",
+    "Al-Ahzab", "Saba", "Fatir", "Ya-Sin", "As-Saffat", "Sad", "Az-Zumar",
+    "Ghafir", "Fussilat", "Ash-Shura", "Az-Zukhruf", "Ad-Dukhan", "Al-Jathiyah",
+    "Al-Ahqaf", "Muhammad", "Al-Fath", "Al-Hujurat", "Qaf", "Adh-Dhariyat",
+    "At-Tur", "An-Najm", "Al-Qamar", "Ar-Rahman", "Al-Waqi'ah", "Al-Hadid",
+    "Al-Mujadila", "Al-Hashr", "Al-Mumtahanah", "As-Saff", "Al-Jumu'ah",
+    "Al-Munafiqun", "At-Taghabun", "At-Talaq", "At-Tahrim", "Al-Mulk", "Al-Qalam",
+    "Al-Haqqah", "Al-Ma'arij", "Nuh", "Al-Jinn", "Al-Muzzammil", "Al-Muddathir",
+    "Al-Qiyamah", "Al-Insan", "Al-Mursalat", "An-Naba", "An-Nazi'at", "'Abasa",
+    "At-Takwir", "Al-Infitar", "Al-Mutaffifin", "Al-Inshiqaq", "Al-Buruj",
+    "At-Tariq", "Al-A'la", "Al-Ghashiyah", "Al-Fajr", "Al-Balad", "Ash-Shams",
+    "Al-Layl", "Ad-Duha", "Ash-Sharh", "At-Tin", "Al-'Alaq", "Al-Qadr",
+    "Al-Bayyinah", "Az-Zalzalah", "Al-'Adiyat", "Al-Qari'ah", "At-Takathur",
+    "Al-'Asr", "Al-Humazah", "Al-Fil", "Quraysh", "Al-Ma'un", "Al-Kawthar",
     "Al-Kafirun", "An-Nasr", "Al-Masad", "Al-Ikhlas", "Al-Falaq", "An-Nas"
 ]
 SURAH_LISTA = [f"{i}. {name}" for i, name in enumerate(raw_surah_names, 1)]
 
-# --- HJÄLPFUNKTIONER ---
-def calculate_next_date(current_step):
+# Verse counts per surah (Hafs narration, 6236 total)
+SURAH_VERSES = [
+    7, 286, 200, 176, 120, 165, 206, 75, 129, 109,
+    123, 111, 43, 52, 99, 128, 111, 110, 98, 135,
+    112, 78, 118, 64, 77, 227, 93, 88, 69, 60,
+    34, 30, 73, 54, 45, 83, 182, 88, 75, 85,
+    54, 53, 89, 59, 37, 35, 38, 29, 18, 45,
+    60, 49, 62, 55, 78, 96, 29, 22, 24, 13,
+    14, 11, 11, 18, 12, 12, 30, 52, 52, 44,
+    28, 28, 20, 56, 40, 31, 50, 40, 46, 42,
+    29, 19, 36, 25, 22, 17, 19, 26, 30, 20,
+    15, 21, 11, 8, 8, 19, 5, 8, 8, 11,
+    11, 8, 3, 9, 5, 4, 7, 3, 6, 3,
+    5, 4, 5, 6
+]
+TOTAL_VERSES = sum(SURAH_VERSES)  # 6236
+
+# Word counts per surah (approximate, ~77 430 total)
+SURAH_WORDS = [
+    29, 6144, 3503, 3745, 2842, 3055, 3346, 1244, 2506, 1839,
+    1947, 1795, 855, 831, 658, 1844, 1556, 1578, 972, 1353,
+    1178, 1282, 1056, 1317, 897, 1322, 1163, 1439, 981, 817,
+    549, 374, 1303, 884, 779, 733, 866, 735, 1177, 1229,
+    794, 860, 836, 346, 488, 648, 542, 560, 353, 373,
+    360, 312, 360, 342, 352, 379, 575, 475, 445, 349,
+    221, 177, 181, 242, 284, 254, 333, 301, 261, 217,
+    228, 286, 200, 256, 164, 243, 181, 174, 179, 134,
+    104, 81, 169, 108, 109, 61, 72, 92, 139, 82,
+    54, 71, 40, 27, 34, 72, 30, 94, 36, 61,
+    36, 28, 14, 33, 23, 17, 25, 10, 27, 19,
+    23, 15, 23, 20
+]
+TOTAL_WORDS = sum(SURAH_WORDS)
+
+# Juz each surah starts in (index = surah_num - 1)
+SURAH_TO_JUZ = [
+    1, 1, 3, 4, 6, 7, 8, 9, 10, 11,
+    11, 12, 13, 13, 14, 14, 15, 15, 16, 16,
+    17, 17, 18, 18, 18, 19, 19, 20, 20, 21,
+    21, 21, 21, 22, 22, 22, 23, 23, 23, 24,
+    24, 25, 25, 25, 25, 26, 26, 26, 26, 26,
+    26, 27, 27, 27, 27, 27, 27, 28, 28, 28,
+    28, 28, 28, 28, 28, 28, 29, 29, 29, 29,
+    29, 29, 29, 29, 29, 29, 29, 30, 30, 30,
+    30, 30, 30, 30, 30, 30, 30, 30, 30, 30,
+    30, 30, 30, 30, 30, 30, 30, 30, 30, 30,
+    30, 30, 30, 30, 30, 30, 30, 30, 30, 30,
+    30, 30, 30, 30
+]
+
+JUZ_SURAHS = {}
+for idx, juz in enumerate(SURAH_TO_JUZ):
+    JUZ_SURAHS.setdefault(juz, []).append(idx + 1)
+JUZ_SURAHS[2] = [2]  # Al-Baqarah spans juz 2
+JUZ_SURAHS[5] = [4]  # An-Nisa spans juz 5
+
+STEP_COLORS = {
+    0: "rgba(128,128,128,0.12)",
+    1: "#c0392b", 2: "#d68910", 3: "#b7950b", 4: "#1a6fa8", 5: "#1a7a4a",
+}
+
+# --- CORE LOGIC ---
+def calculate_next_date(step):
     today = datetime.date.today()
     intervals = {1: 0, 2: 1, 3: 3, 4: 7, 5: 30}
-    days = intervals.get(int(current_step), 1)
-    return today + datetime.timedelta(days=days)
+    return today + datetime.timedelta(days=intervals.get(int(step), 1))
 
 @st.cache_data(ttl=3600)
 def fetch_from_db():
     try:
-        response = requests.get(URL, headers=HEADERS)
-        if response.status_code == 200:
-            return response.json().get("record", [])
+        r = requests.get(URL, headers=HEADERS)
+        if r.status_code == 200:
+            return r.json().get("record", [])
     except Exception as e:
         st.error(f"Kunde inte ladda data: {e}")
     return []
 
-def save_to_db(data_to_save):
+def save_to_db(data):
     try:
-        response = requests.put(URL, json=data_to_save, headers=HEADERS)
-        if response.status_code != 200:
-            st.error(f"Ett fel uppstod vid kontakt med databasen.")
+        r = requests.put(URL, json=data, headers=HEADERS)
+        if r.status_code != 200:
+            st.error("Fel vid sparning.")
         fetch_from_db.clear()
     except Exception as e:
-        st.error(f"Fel vid sparning: {e}")
+        st.error(f"Fel: {e}")
 
-# --- INITIERA SESSION STATE ---
 if "db_data" not in st.session_state:
     st.session_state.db_data = fetch_from_db()
 
-# --- DATABAS-FUNKTIONER ---
 def mark_done(item_id):
     for d in st.session_state.db_data:
         if str(d['id']) == str(item_id):
-            nuvarande_steg = int(d.get("steg", 1))
-            nytt_steg = min(nuvarande_steg + 1, 5)
-            d["steg"] = nytt_steg
-            d["nasta_repetition"] = str(calculate_next_date(nytt_steg))
-            
-            seg_key = f"seg_{item_id}"
-            if seg_key in st.session_state:
-                st.session_state[seg_key] = nytt_steg
-                
-            st.toast(f"✅ {d['namn']} -> Steg {nytt_steg}!")
-            if nytt_steg == 5 and nuvarande_steg != 5:
-                st.balloons()
+            step = min(int(d.get("steg", 1)) + 1, 5)
+            d["steg"] = step
+            d["nasta_repetition"] = str(calculate_next_date(step))
+            if f"seg_{item_id}" in st.session_state:
+                st.session_state[f"seg_{item_id}"] = step
+            st.toast(f"✅ {d['namn']} → Steg {step}")
             break
     save_to_db(st.session_state.db_data)
 
@@ -95,279 +145,483 @@ def mark_failed(item_id):
         if str(d['id']) == str(item_id):
             d["steg"] = 1
             d["nasta_repetition"] = str(datetime.date.today())
-            
-            seg_key = f"seg_{item_id}"
-            if seg_key in st.session_state:
-                st.session_state[seg_key] = 1
-                
-            st.toast(f"🔄 {d['namn']} återställd.")
+            if f"seg_{item_id}" in st.session_state:
+                st.session_state[f"seg_{item_id}"] = 1
+            st.toast(f"🔄 {d['namn']} → Steg 1")
             break
     save_to_db(st.session_state.db_data)
 
 def delete_item(item_id):
     st.session_state.db_data = [d for d in st.session_state.db_data if str(d['id']) != str(item_id)]
     save_to_db(st.session_state.db_data)
-    st.toast("🗑️ Kapitel borttaget.")
+    st.toast("🗑️ Borttaget.")
 
-# --- CALLBACKS ---
-def action_callback(item_id, widget_key):
-    val = st.session_state[widget_key]
+def action_callback(item_id, key):
+    val = st.session_state[key]
     if val:
         if "✅" in val:
             mark_done(item_id)
         elif "🔄" in val:
             mark_failed(item_id)
-        st.session_state[widget_key] = None
+        st.session_state[key] = None
 
-def step_change_callback(item_id, widget_key):
-    nytt_steg = st.session_state[widget_key]
-    if nytt_steg is not None:
+def step_change_callback(item_id, key):
+    step = st.session_state[key]
+    if step is not None:
         for d in st.session_state.db_data:
-            if str(d['id']) == str(item_id) and d['steg'] != nytt_steg:
-                d['steg'] = nytt_steg
-                d['nasta_repetition'] = str(calculate_next_date(nytt_steg))
+            if str(d['id']) == str(item_id) and d['steg'] != step:
+                d['steg'] = step
+                d['nasta_repetition'] = str(calculate_next_date(step))
                 save_to_db(st.session_state.db_data)
                 break
 
-# --- SÄKER, STILREN CSS ---
-st.markdown('''
-    <style>
-    [data-testid="stVerticalBlockBorderWrapper"] > div {
-        padding: 0.6rem !important;
-    }
-    [data-testid="stVerticalBlock"] > [style*="flex-direction: column;"] > [data-testid="stVerticalBlock"] {
-        gap: 0.2rem !important;
-    }
-    </style>
-''', unsafe_allow_html=True)
+# --- CSS ---
+st.markdown("""
+<style>
+#MainMenu, header, footer { visibility: hidden; }
 
-# --- TOPP: KOMPAKT STATISTIK ---
-total_added = len(st.session_state.db_data)
-steg_counts = {1: 0, 2: 0, 3: 0, 4: 0, 5: 0}
-for d in st.session_state.db_data:
-    steg_counts[int(d.get('steg', 1))] += 1
+.main .block-container {
+    padding-top: 0.75rem !important;
+    padding-bottom: 76px !important;
+    padding-left: 0.9rem !important;
+    padding-right: 0.9rem !important;
+    max-width: 520px !important;
+}
 
-progress_pct = int((total_added / 114) * 100) if total_added > 0 else 0
+[data-baseweb="tab-list"] {
+    position: fixed !important;
+    bottom: 0 !important; left: 0 !important; right: 0 !important;
+    z-index: 99999 !important;
+    background: var(--background-color) !important;
+    border-top: 1px solid var(--border-color) !important;
+    height: 58px !important;
+    padding: 0 !important;
+    gap: 0 !important;
+    display: flex !important;
+    justify-content: space-around !important;
+    align-items: stretch !important;
+    margin: 0 !important;
+}
+[data-baseweb="tab"] {
+    flex: 1 !important;
+    height: 58px !important;
+    padding: 4px 1px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    font-size: 0.56em !important;
+    gap: 1px !important;
+    border: none !important;
+    min-width: 0 !important;
+    white-space: normal !important;
+    text-align: center !important;
+    line-height: 1.2 !important;
+}
+[data-baseweb="tab"][aria-selected="true"] {
+    color: #1a7a4a !important;
+    border-top: 2px solid #1a7a4a !important;
+}
+[data-baseweb="tab-highlight"], [data-baseweb="tab-border"] { display: none !important; }
 
-html_kod = f"""<div style="background-color: var(--secondary-background-color); padding: 10px; border-radius: 8px; border: 1px solid var(--border-color); margin-bottom: 5px;">
-<div style="display: flex; justify-content: space-around; align-items: center; margin-bottom: 5px;">
-<div style="text-align: center;">
-<div style="font-size: 0.7em; opacity: 0.7; text-transform: uppercase;">Påbörjade</div>
-<div style="font-size: 1.4em; font-weight: 800; color: #4DA3FF; line-height: 1;">{total_added}<span style="font-size: 0.5em; opacity: 0.5;">/114</span></div>
-</div>
-<div style="width: 1px; height: 25px; background-color: var(--border-color);"></div>
-<div style="text-align: center;">
-<div style="font-size: 0.7em; opacity: 0.7; text-transform: uppercase;">Bemästrade</div>
-<div style="font-size: 1.4em; font-weight: 800; color: #28A745; line-height: 1;">{steg_counts[5]}</div>
-</div>
-</div>
-<div style="width: 100%; background-color: var(--background-color); border-radius: 4px; height: 5px; margin-bottom: 5px;">
-<div style="width: {progress_pct}%; background-color: #4DA3FF; height: 5px; border-radius: 4px;"></div>
-</div>
-<div style="display: flex; justify-content: space-between; font-size: 0.7em; padding: 0 2px; font-weight: 500;">
-<span>S1:<b style="color:#ff4b4b;">{steg_counts[1]}</b></span> <span>S2:<b>{steg_counts[2]}</b></span> <span>S3:<b>{steg_counts[3]}</b></span> <span>S4:<b>{steg_counts[4]}</b></span> <span>S5:<b style="color:#28A745;">{steg_counts[5]}</b></span>
-</div>
-</div>"""
-st.markdown(html_kod, unsafe_allow_html=True)
+[data-testid="stVerticalBlockBorderWrapper"] > div { padding: 0.45rem 0.55rem !important; }
+</style>
+""", unsafe_allow_html=True)
 
-# --- HUVUDAPP ---
+# --- COMPUTED STATS ---
+data = st.session_state.db_data
 today_str = str(datetime.date.today())
 
-tab_dagens, tab_kommande, tab_hantera, tab_diagram, tab_rutnat, tab_lagg_till = st.tabs([
-    "🎯 Idag", "⏳ Komm.", "📚 Översikt", "📊 Graf", "🔲 Rutnät", "➕ Nytt"
+total_added = len(data)
+steg_c = {i: 0 for i in range(1, 6)}
+for d in data:
+    steg_c[int(d.get('steg', 1))] += 1
+mastered_count = steg_c[5]
+due_today = sum(1 for d in data if d['nasta_repetition'] <= today_str)
+
+surah_step = {}
+for d in data:
+    try:
+        num = int(d['namn'].split('.')[0])
+        surah_step[num] = int(d.get('steg', 1))
+    except Exception:
+        pass
+
+# Verse/word totals for mastered (S5) and in-progress surahs
+mastered_verses = sum(SURAH_VERSES[n - 1] for n, s in surah_step.items() if s == 5)
+mastered_words = sum(SURAH_WORDS[n - 1] for n, s in surah_step.items() if s == 5)
+started_verses = sum(SURAH_VERSES[n - 1] for n in surah_step)
+started_words = sum(SURAH_WORDS[n - 1] for n in surah_step)
+
+juz_fully_mastered = sum(
+    1 for juz_num in range(1, 31)
+    if JUZ_SURAHS.get(juz_num) and all(surah_step.get(s, 0) == 5 for s in JUZ_SURAHS[juz_num])
+)
+
+# --- TABS ---
+tab_dash, tab_idag, tab_progress, tab_hantera, tab_lagg = st.tabs([
+    "🏠 Hem", "🎯 Session", "📊 Progress", "📚 Hantera", "➕ Nytt"
 ])
 
-# --- FLIK 1: DAGENS PASS ---
-with tab_dagens:
-    repetition_queue = [d for d in st.session_state.db_data if d['nasta_repetition'] <= today_str]
-    repetition_queue.sort(key=lambda x: x['nasta_repetition'])
+# ===================== DASHBOARD =====================
+with tab_dash:
+    pct_surah = int((mastered_count / 114) * 100)
+    pct_verse = int((mastered_verses / TOTAL_VERSES) * 100) if mastered_verses else 0
+    pct_word  = int((mastered_words / TOTAL_WORDS) * 100) if mastered_words else 0
+    pct_juz   = int((juz_fully_mastered / 30) * 100)
 
-    if not repetition_queue:
-        st.success("🎉 Inga fler repetitioner idag!")
+    def stat_row(label, value, total, color, pct, unit=""):
+        bar = f"<div style='flex:1;height:5px;background:var(--border-color);border-radius:3px;margin:0 8px;'><div style='width:{pct}%;height:5px;background:{color};border-radius:3px;'></div></div>"
+        return (
+            f"<div style='display:flex;align-items:center;margin-bottom:6px;'>"
+            f"<div style='width:80px;font-size:0.7em;opacity:0.6;'>{label}</div>"
+            f"{bar}"
+            f"<div style='text-align:right;min-width:80px;'>"
+            f"<span style='font-size:0.9em;font-weight:700;color:{color};'>{value:,}</span>"
+            f"<span style='font-size:0.6em;opacity:0.5;'>/{total:,}{unit}</span>"
+            f"</div>"
+            f"</div>"
+        )
+
+    def big_stat(label, value, sub, color):
+        return (
+            f"<div style='text-align:center;padding:6px;'>"
+            f"<div style='font-size:0.6em;opacity:0.55;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:2px;'>{label}</div>"
+            f"<div style='font-size:1.6em;font-weight:800;color:{color};line-height:1;'>{value}</div>"
+            f"<div style='font-size:0.58em;opacity:0.45;margin-top:1px;'>{sub}</div>"
+            f"</div>"
+        )
+
+    # Top big stats
+    st.markdown(f"""
+<div style="background:var(--secondary-background-color);border-radius:10px;border:1px solid var(--border-color);padding:12px;margin-bottom:10px;">
+  <div style="display:grid;grid-template-columns:1fr 1px 1fr 1px 1fr 1px 1fr;gap:0;margin-bottom:10px;">
+    {big_stat("Suror", mastered_count, f"/{114}", "#1a7a4a")}
+    <div style="background:var(--border-color);"></div>
+    {big_stat("Juz", juz_fully_mastered, "/30", "#b7950b")}
+    <div style="background:var(--border-color);"></div>
+    {big_stat("Verser", f"{mastered_verses:,}", f"/{TOTAL_VERSES:,}", "#1a6fa8")}
+    <div style="background:var(--border-color);"></div>
+    {big_stat("Ord", f"{mastered_words:,}", f"/{TOTAL_WORDS:,}", "#8e44ad")}
+  </div>
+  <div style="font-size:0.65em;opacity:0.5;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:6px;">Bemästrat (Steg 5)</div>
+  {stat_row("Suror", mastered_count, 114, "#1a7a4a", pct_surah)}
+  {stat_row("Juz", juz_fully_mastered, 30, "#b7950b", pct_juz)}
+  {stat_row("Verser", mastered_verses, TOTAL_VERSES, "#1a6fa8", pct_verse)}
+  {stat_row("Ord", mastered_words, TOTAL_WORDS, "#8e44ad", pct_word)}
+</div>
+""", unsafe_allow_html=True)
+
+    # In-progress stats
+    in_prog_surah = total_added - mastered_count
+    in_prog_verses = started_verses - mastered_verses
+    in_prog_words  = started_words  - mastered_words
+
+    st.markdown(f"""
+<div style="background:var(--secondary-background-color);border-radius:10px;border:1px solid var(--border-color);padding:12px;margin-bottom:10px;">
+  <div style="font-size:0.65em;opacity:0.5;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:8px;">Pågående (S1–S4)</div>
+  <div style="display:flex;justify-content:space-around;text-align:center;">
+    <div>
+      <div style="font-size:1.2em;font-weight:700;color:#d68910;">{in_prog_surah}</div>
+      <div style="font-size:0.6em;opacity:0.55;">Suror</div>
+    </div>
+    <div style="width:1px;background:var(--border-color);"></div>
+    <div>
+      <div style="font-size:1.2em;font-weight:700;color:#d68910;">{in_prog_verses:,}</div>
+      <div style="font-size:0.6em;opacity:0.55;">Verser</div>
+    </div>
+    <div style="width:1px;background:var(--border-color);"></div>
+    <div>
+      <div style="font-size:1.2em;font-weight:700;color:#d68910;">{in_prog_words:,}</div>
+      <div style="font-size:0.6em;opacity:0.55;">Ord</div>
+    </div>
+  </div>
+</div>
+""", unsafe_allow_html=True)
+
+    # Step breakdown
+    max_steg = max(steg_c.values()) if any(steg_c.values()) else 1
+    step_labels = {1: "S1", 2: "S2", 3: "S3", 4: "S4", 5: "S5"}
+    step_colors_list = ["#c0392b", "#d68910", "#b7950b", "#1a6fa8", "#1a7a4a"]
+    bars_html = "<div style='display:flex;align-items:flex-end;gap:6px;height:60px;margin-top:4px;'>"
+    for i in range(1, 6):
+        h = int((steg_c[i] / max_steg) * 52) if max_steg else 0
+        bars_html += (
+            f"<div style='flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;'>"
+            f"<div style='font-size:0.6em;font-weight:600;color:{step_colors_list[i-1]};'>{steg_c[i]}</div>"
+            f"<div style='width:100%;height:{h}px;background:{step_colors_list[i-1]};border-radius:3px 3px 0 0;min-height:3px;'></div>"
+            f"<div style='font-size:0.58em;opacity:0.5;'>{step_labels[i]}</div>"
+            f"</div>"
+        )
+    bars_html += "</div>"
+
+    st.markdown(f"""
+<div style="background:var(--secondary-background-color);border-radius:10px;border:1px solid var(--border-color);padding:12px;margin-bottom:10px;">
+  <div style="font-size:0.65em;opacity:0.5;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:4px;">Fördelning per steg</div>
+  {bars_html}
+</div>
+""", unsafe_allow_html=True)
+
+    # Today summary
+    queue_today = [d for d in data if d['nasta_repetition'] <= today_str]
+    if queue_today:
+        st.markdown(f"""
+<div style="background:rgba(192,57,43,0.08);border-radius:10px;border:1px solid rgba(192,57,43,0.25);padding:10px 12px;">
+  <div style="font-size:0.7em;font-weight:600;color:#c0392b;">🎯 {len(queue_today)} kapitel att repetera idag</div>
+  <div style="font-size:0.62em;opacity:0.6;margin-top:2px;">Gå till Session-fliken</div>
+</div>
+""", unsafe_allow_html=True)
     else:
-        for item in repetition_queue:
+        st.markdown("""
+<div style="background:rgba(26,122,74,0.08);border-radius:10px;border:1px solid rgba(26,122,74,0.25);padding:10px 12px;">
+  <div style="font-size:0.7em;font-weight:600;color:#1a7a4a;">✓ Inga repetitioner kvar idag</div>
+</div>
+""", unsafe_allow_html=True)
+
+# ===================== SESSION (IDAG + KOMM.) =====================
+with tab_idag:
+    queue = sorted(
+        [d for d in data if d['nasta_repetition'] <= today_str],
+        key=lambda x: x['nasta_repetition']
+    )
+    kommande = sorted(
+        [d for d in data if d['nasta_repetition'] > today_str],
+        key=lambda x: x['nasta_repetition']
+    )
+
+    if queue:
+        st.markdown(
+            f"<div style='font-size:0.72em;opacity:0.55;margin-bottom:6px;font-weight:600;'>IDAG · {len(queue)} kvar</div>",
+            unsafe_allow_html=True
+        )
+        for item in queue:
             with st.container(border=True):
-                st.markdown(f"<div style='display:flex; justify-content:space-between; align-items:center; margin-bottom: 8px;'><b style='font-size:1.05em;'>{item['namn']}</b><span style='font-size:0.8em; color:var(--text-color); opacity:0.7;'>S{item['steg']} • {item['nasta_repetition']}</span></div>", unsafe_allow_html=True)
-                key_name = f"act_dag_{item['id']}"
-                st.segmented_control(
-                    "Åtgärd", ["✅ Klar", "🔄 Igen"], key=key_name, label_visibility="collapsed",
-                    on_change=action_callback, args=(item['id'], key_name)
+                step = int(item.get('steg', 1))
+                st.markdown(
+                    f"<div style='display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;'>"
+                    f"<b style='font-size:0.97em;'>{item['namn']}</b>"
+                    f"<span style='font-size:0.7em;background:{STEP_COLORS[step]};color:white;padding:1px 7px;border-radius:10px;font-weight:600;'>S{step}</span>"
+                    f"</div>",
+                    unsafe_allow_html=True
                 )
-
-# --- FLIK 2: KOMMANDE ---
-with tab_kommande:
-    kommande_queue = [d for d in st.session_state.db_data if d['nasta_repetition'] > today_str]
-    kommande_queue.sort(key=lambda x: x['nasta_repetition'])
-
-    if not kommande_queue:
-        st.info("Inga framtida repetitioner inplanerade.")
+                key = f"act_dag_{item['id']}"
+                st.segmented_control(
+                    "", ["✅ Klar", "🔄 Igen"], key=key,
+                    label_visibility="collapsed",
+                    on_change=action_callback, args=(item['id'], key)
+                )
     else:
-        for item in kommande_queue:
-            with st.container(border=True):
-                st.markdown(f"<div style='display:flex; justify-content:space-between; align-items:center; margin-bottom: 8px;'><b style='font-size:1.05em;'>{item['namn']}</b><span style='font-size:0.8em; color:var(--text-color); opacity:0.7;'>S{item['steg']} • {item['nasta_repetition']}</span></div>", unsafe_allow_html=True)
-                key_name = f"act_kom_{item['id']}"
-                st.segmented_control(
-                    "Åtgärd", ["✅ Kör nu", "🔄 Återställ"], key=key_name, label_visibility="collapsed",
-                    on_change=action_callback, args=(item['id'], key_name)
-                )
+        st.success("✓ Inga repetitioner kvar idag!")
 
-# --- FLIK 3: ÖVERSIKT OCH HANTERING ---
+    if kommande:
+        st.markdown(
+            f"<div style='font-size:0.72em;opacity:0.55;margin:14px 0 6px;font-weight:600;'>KOMMANDE · {len(kommande)} st</div>",
+            unsafe_allow_html=True
+        )
+        by_date = {}
+        for item in kommande:
+            by_date.setdefault(item['nasta_repetition'], []).append(item)
+        for datum, items in sorted(by_date.items()):
+            days_away = (datetime.date.fromisoformat(datum) - datetime.date.today()).days
+            day_label = f"om {days_away} dag{'ar' if days_away != 1 else ''}"
+            st.markdown(
+                f"<div style='font-size:0.65em;opacity:0.45;text-transform:uppercase;letter-spacing:0.04em;margin:8px 0 3px;'>{datum} · {day_label}</div>",
+                unsafe_allow_html=True
+            )
+            for item in items:
+                with st.container(border=True):
+                    step = int(item.get('steg', 1))
+                    st.markdown(
+                        f"<div style='display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;'>"
+                        f"<b style='font-size:0.97em;'>{item['namn']}</b>"
+                        f"<span style='font-size:0.7em;background:{STEP_COLORS[step]};color:white;padding:1px 7px;border-radius:10px;font-weight:600;'>S{step}</span>"
+                        f"</div>",
+                        unsafe_allow_html=True
+                    )
+                    key = f"act_kom_{item['id']}"
+                    st.segmented_control(
+                        "", ["✅ Kör nu", "🔄 Återställ"], key=key,
+                        label_visibility="collapsed",
+                        on_change=action_callback, args=(item['id'], key)
+                    )
+
+# ===================== PROGRESS =====================
+with tab_progress:
+
+    # --- JUZ GRID ---
+    st.markdown(
+        "<div style='font-size:0.68em;opacity:0.5;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:7px;'>Juz (1–30)</div>",
+        unsafe_allow_html=True
+    )
+    juz_html = "<div style='display:grid;grid-template-columns:repeat(6,1fr);gap:5px;margin-bottom:8px;'>"
+    for juz_num in range(1, 31):
+        surahs = JUZ_SURAHS.get(juz_num, [])
+        total_j = len(surahs)
+        mastered_j = sum(1 for s in surahs if surah_step.get(s, 0) == 5)
+        started_j = sum(1 for s in surahs if surah_step.get(s, 0) > 0)
+        pct = mastered_j / total_j if total_j else 0
+
+        if mastered_j == total_j and total_j > 0:
+            bg, border, text_c, sub_c = "#1a7a4a", "#1a7a4a", "white", "rgba(255,255,255,0.75)"
+        elif started_j > 0:
+            alpha = round(0.15 + 0.6 * pct, 2)
+            bg, border = f"rgba(26,122,74,{alpha})", "rgba(26,122,74,0.5)"
+            text_c = sub_c = "var(--text-color)"
+        else:
+            bg, border = "rgba(128,128,128,0.1)", "var(--border-color)"
+            text_c = sub_c = "var(--text-color)"
+
+        tooltip = f"Juz {juz_num}: {mastered_j}/{total_j} bemästrade"
+        juz_html += (
+            f"<div title='{tooltip}' style='aspect-ratio:1;border-radius:6px;background:{bg};"
+            f"border:1px solid {border};display:flex;flex-direction:column;"
+            f"align-items:center;justify-content:center;cursor:default;'>"
+            f"<div style='font-size:0.75em;font-weight:800;color:{text_c};line-height:1;'>{juz_num}</div>"
+            f"<div style='font-size:0.47em;color:{sub_c};opacity:0.85;margin-top:1px;'>{mastered_j}/{total_j}</div>"
+            f"</div>"
+        )
+    juz_html += "</div>"
+    juz_html += (
+        "<div style='display:flex;gap:10px;font-size:0.61em;margin-bottom:12px;opacity:0.6;flex-wrap:wrap;'>"
+        "<span><span style='display:inline-block;width:8px;height:8px;border-radius:2px;background:rgba(128,128,128,0.12);border:1px solid var(--border-color);vertical-align:middle;margin-right:3px;'></span>Ej påbörjad</span>"
+        "<span><span style='display:inline-block;width:8px;height:8px;border-radius:2px;background:rgba(26,122,74,0.4);vertical-align:middle;margin-right:3px;'></span>Pågående</span>"
+        "<span><span style='display:inline-block;width:8px;height:8px;border-radius:2px;background:#1a7a4a;vertical-align:middle;margin-right:3px;'></span>Klar</span>"
+        "</div>"
+    )
+    st.markdown(juz_html, unsafe_allow_html=True)
+
+    # --- SURAH GRID grouped by Juz ---
+    st.markdown(
+        "<div style='font-size:0.68em;opacity:0.5;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:7px;'>Suror per Juz</div>",
+        unsafe_allow_html=True
+    )
+
+    juz_surah_ordered = {}
+    for idx, juz in enumerate(SURAH_TO_JUZ):
+        juz_surah_ordered.setdefault(juz, []).append((idx + 1, raw_surah_names[idx]))
+
+    grid_html = ""
+    for juz_num in range(1, 31):
+        surahs_here = juz_surah_ordered.get(juz_num, [])
+        if not surahs_here:
+            continue
+        mastered_j = sum(1 for (s, _) in surahs_here if surah_step.get(s, 0) == 5)
+        total_j = len(surahs_here)
+        bar_w = int((mastered_j / total_j) * 100) if total_j else 0
+
+        grid_html += (
+            f"<div style='margin-bottom:11px;'>"
+            f"<div style='display:flex;align-items:center;gap:7px;margin-bottom:4px;'>"
+            f"<span style='font-size:0.65em;font-weight:700;opacity:0.45;white-space:nowrap;'>Juz {juz_num}</span>"
+            f"<div style='flex:1;height:3px;background:var(--border-color);border-radius:2px;'>"
+            f"<div style='width:{bar_w}%;height:3px;background:#1a7a4a;border-radius:2px;'></div></div>"
+            f"<span style='font-size:0.58em;opacity:0.4;'>{mastered_j}/{total_j}</span>"
+            f"</div>"
+            f"<div style='display:grid;grid-template-columns:repeat(auto-fill,minmax(50px,1fr));gap:4px;'>"
+        )
+        for (num, name) in surahs_here:
+            step = surah_step.get(num, 0)
+            bg = STEP_COLORS.get(step, "#888")
+            text_c = "white" if step > 0 else "var(--text-color)"
+            opacity = "1" if step > 0 else "0.38"
+            tooltip = f"{num}. {name} (S{step})"
+            grid_html += (
+                f"<div title='{tooltip}' style='background:{bg};color:{text_c};opacity:{opacity};"
+                f"aspect-ratio:1;border-radius:5px;display:flex;flex-direction:column;"
+                f"align-items:center;justify-content:center;padding:2px;"
+                f"border:1px solid var(--border-color);overflow:hidden;cursor:help;'>"
+                f"<div style='font-size:0.88em;font-weight:800;line-height:1;'>{num}</div>"
+                f"<div style='font-size:0.43em;text-align:center;line-height:1.1;margin-top:2px;"
+                f"display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;width:100%;'>{name}</div>"
+                f"</div>"
+            )
+        grid_html += "</div></div>"
+
+    labels_map = {0: "Ej", 1: "S1", 2: "S2", 3: "S3", 4: "S4", 5: "S5"}
+    grid_html += "<div style='display:flex;justify-content:space-between;font-size:0.61em;margin-top:2px;'>"
+    for s, c in STEP_COLORS.items():
+        grid_html += f"<span style='display:flex;align-items:center;gap:3px;'><span style='width:8px;height:8px;border-radius:2px;background:{c};border:1px solid var(--border-color);display:inline-block;'></span>{labels_map[s]}</span>"
+    grid_html += "</div>"
+
+    st.markdown(grid_html, unsafe_allow_html=True)
+
+# ===================== HANTERA =====================
 with tab_hantera:
-    search_term = st.text_input("🔍 Sök Surah...", "")
-    filtered_data = [d for d in st.session_state.db_data if search_term.lower() in d['namn'].lower()]
-    
-    def get_sort_key(item):
-        try: return int(item['namn'].split('.')[0])
-        except ValueError: return 999 
-    filtered_data.sort(key=get_sort_key)
-        
-    if not filtered_data:
+    search = st.text_input("🔍 Sök surah...", "", placeholder="Namn...")
+    filtered = [d for d in data if search.lower() in d['namn'].lower()]
+
+    def sort_key(item):
+        try:
+            return int(item['namn'].split('.')[0])
+        except Exception:
+            return 999
+    filtered.sort(key=sort_key)
+
+    if not filtered:
         st.info("Inga kapitel hittades.")
-        
-    for item in filtered_data:
+
+    for item in filtered:
         with st.container(border=True):
-            st.markdown(f"<div style='display:flex; justify-content:space-between; align-items:center; margin-bottom: 8px;'><b style='font-size:1.05em;'>{item['namn']}</b><span style='font-size:0.8em; color:var(--text-color); opacity:0.7;'>Nästa: {item['nasta_repetition']}</span></div>", unsafe_allow_html=True)
+            step = int(item.get('steg', 1))
+            st.markdown(
+                f"<div style='display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;'>"
+                f"<b style='font-size:0.95em;'>{item['namn']}</b>"
+                f"<span style='font-size:0.66em;opacity:0.45;'>{item['nasta_repetition']}</span>"
+                f"</div>",
+                unsafe_allow_html=True
+            )
             c1, c2 = st.columns([5, 1], vertical_alignment="center")
             with c1:
-                key_name = f"seg_{item['id']}"
-                if key_name not in st.session_state:
-                    st.session_state[key_name] = int(item['steg'])
+                key = f"seg_{item['id']}"
+                if key not in st.session_state:
+                    st.session_state[key] = int(item['steg'])
                 st.segmented_control(
-                    "St", options=[1, 2, 3, 4, 5], key=key_name, label_visibility="collapsed",
-                    on_change=step_change_callback, args=(item['id'], key_name)
+                    "", options=[1, 2, 3, 4, 5], key=key,
+                    label_visibility="collapsed",
+                    on_change=step_change_callback, args=(item['id'], key)
                 )
             with c2:
-                st.button("🗑️", key=f"del_{item['id']}", on_click=delete_item, args=(item['id'],), help="Ta bort", use_container_width=True)
+                st.button("🗑️", key=f"del_{item['id']}", on_click=delete_item,
+                          args=(item['id'],), use_container_width=True)
 
-# --- FLIK 4: DIAGRAM ---
-with tab_diagram:
-    st.write("Visuell arbetsbelastning uppdelad i steg:")
-    if not st.session_state.db_data:
-        st.info("Lägg till kapitel för att se din planering!")
-    else:
-        df = pd.DataFrame(st.session_state.db_data)
-        df['nasta_repetition'] = pd.to_datetime(df['nasta_repetition']).dt.date
-        df['steg'] = df['steg'].astype(int) 
-        idag = datetime.date.today()
-        max_datum = df['nasta_repetition'].max()
-        if pd.isna(max_datum) or max_datum < idag:
-            max_datum = idag + datetime.timedelta(days=7)
-            
-        alla_dagar = pd.date_range(start=idag, end=max_datum).date
-        chart_data = df.groupby(['nasta_repetition', 'steg']).size().unstack(fill_value=0)
-        chart_data = chart_data.reindex(alla_dagar, fill_value=0)
-        for i in range(1, 6):
-            if i not in chart_data.columns: chart_data[i] = 0
-                
-        chart_data = chart_data[[1, 2, 3, 4, 5]]
-        chart_data.columns = ["Steg 1", "Steg 2", "Steg 3", "Steg 4", "Steg 5"]
-        steg_farger = ["#ff4b4b", "#ffa500", "#ffd700", "#4DA3FF", "#28A745"]
-        st.bar_chart(chart_data, color=steg_farger)
-        st.divider() 
-        
-        st.markdown("<div style='font-size: 0.8em; color: #666; text-transform: uppercase;'>📅 Kapitel framöver:</div>", unsafe_allow_html=True)
-        dagar_med_krav = df.groupby('nasta_repetition')
-        
-        for datum, group in dagar_med_krav:
-            if len(group) == 0: continue
-            is_past = datum < idag
-            status_icon = "⚠️" if is_past else "📍"
-            with st.expander(f"{status_icon} {datum} ({len(group)} st)"):
-                for _, rad in group.iterrows():
-                    st.markdown(f"- **{rad['namn']}** (S{rad['steg']})")
+# ===================== LÄGG TILL =====================
+with tab_lagg:
+    metod = st.segmented_control("Metod", ["Enskilt", "Bulk"], default="Enskilt")
 
-# --- FLIK 5: RUTNÄT MED NAMN (UPPDATERAD) ---
-with tab_rutnat:
-    st.markdown("<div style='font-size: 0.85em; color: #666; text-transform: uppercase; margin-bottom: 10px;'>Hela Koranen (1-114)</div>", unsafe_allow_html=True)
-    
-    surah_steg_map = {d['namn']: int(d['steg']) for d in st.session_state.db_data}
-    
-    farger = {
-        0: "rgba(128, 128, 128, 0.15)", 
-        1: "#ff4b4b",
-        2: "#ffa500",
-        3: "#ffd700",
-        4: "#4DA3FF",
-        5: "#28A745"
-    }
-    
-    # Gjort rutorna lite bredare (70px) för att texten ska få plats bättre
-    html_grid = "<div style='display: grid; grid-template-columns: repeat(auto-fill, minmax(70px, 1fr)); gap: 8px;'>"
-    
-    for index, surah_fullt_namn in enumerate(SURAH_LISTA):
-        nummer = index + 1
-        ren_namn = raw_surah_names[index] # Ren text, t.ex. "Al-Fatihah" utan siffra
-        steg = surah_steg_map.get(surah_fullt_namn, 0) 
-        farg = farger[steg]
-        
-        text_color = "white" if steg > 0 else "var(--text-color)"
-        opacity = "1" if steg > 0 else "0.5"
-        tooltip = f"{surah_fullt_namn} (Steg {steg})" if steg > 0 else f"{surah_fullt_namn} (Ej tillagd)"
-        
-        # HTML för varje kvadrat. Flexbox centererar allt. Radbrytning hanteras av word-wrap.
-        html_grid += f"""
-        <div title='{tooltip}' style='
-            background-color: {farg}; 
-            color: {text_color}; 
-            opacity: {opacity}; 
-            display: flex; 
-            flex-direction: column; 
-            align-items: center; 
-            justify-content: center; 
-            aspect-ratio: 1 / 1; 
-            border-radius: 6px; 
-            padding: 4px; 
-            cursor: help; 
-            border: 1px solid var(--border-color);
-            box-sizing: border-box;
-            overflow: hidden;
-        '>
-            <div style='font-size: 1.1em; font-weight: 900; line-height: 1;'>{nummer}</div>
-            <div style='font-size: 0.55em; text-align: center; line-height: 1.1; margin-top: 4px; word-wrap: break-word; width: 100%; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;'>{ren_namn}</div>
-        </div>"""
-        
-    html_grid += "</div>"
-    
-    html_grid += f"""
-    <div style='display: flex; justify-content: center; flex-wrap: wrap; gap: 12px; margin-top: 15px; font-size: 0.75em; color: var(--text-color);'>
-        <div style='display:flex; align-items:center; gap:4px;'><div style='width:12px; height:12px; background-color:{farger[0]}; border: 1px solid var(--border-color); border-radius:2px;'></div>Ej tillagd</div>
-        <div style='display:flex; align-items:center; gap:4px;'><div style='width:12px; height:12px; background-color:{farger[1]}; border-radius:2px;'></div>Steg 1</div>
-        <div style='display:flex; align-items:center; gap:4px;'><div style='width:12px; height:12px; background-color:{farger[2]}; border-radius:2px;'></div>Steg 2</div>
-        <div style='display:flex; align-items:center; gap:4px;'><div style='width:12px; height:12px; background-color:{farger[3]}; border-radius:2px;'></div>Steg 3</div>
-        <div style='display:flex; align-items:center; gap:4px;'><div style='width:12px; height:12px; background-color:{farger[4]}; border-radius:2px;'></div>Steg 4</div>
-        <div style='display:flex; align-items:center; gap:4px;'><div style='width:12px; height:12px; background-color:{farger[5]}; border-radius:2px;'></div>Steg 5</div>
-    </div>
-    """
-    
-    st.markdown(html_grid, unsafe_allow_html=True)
-
-# --- FLIK 6: LÄGG TILL ---
-with tab_lagg_till:
-    metod = st.segmented_control("Välj metod", ["Enskilt", "Bulk (Flera)"], default="Enskilt")
     if metod == "Enskilt":
-        vald_surah = st.selectbox("Välj Surah", SURAH_LISTA)
+        vald = st.selectbox("Surah", SURAH_LISTA)
         start_steg = st.radio("Starta på steg:", [1, 2, 3, 4, 5], horizontal=True)
         if st.button("➕ Lägg till", type="primary", use_container_width=True):
-            if not any(d['namn'] == vald_surah for d in st.session_state.db_data):
-                st.session_state.db_data.append({"id": str(uuid.uuid4()), "namn": vald_surah, "steg": start_steg, "nasta_repetition": str(calculate_next_date(start_steg) if start_steg > 1 else today_str)})
+            if not any(d['namn'] == vald for d in st.session_state.db_data):
+                next_rep = str(calculate_next_date(start_steg) if start_steg > 1 else datetime.date.today())
+                st.session_state.db_data.append({
+                    "id": str(uuid.uuid4()), "namn": vald,
+                    "steg": start_steg, "nasta_repetition": next_rep
+                })
                 save_to_db(st.session_state.db_data)
-                st.success(f"Lade till {vald_surah}!")
+                st.success(f"✓ {vald} tillagd!")
             else:
-                st.warning("Detta kapitel finns redan i din lista.")
-    elif metod == "Bulk (Flera)":
+                st.warning("Finns redan i din lista.")
+    else:
         c1, c2 = st.columns(2)
-        start_idx = c1.selectbox("Från", SURAH_LISTA, index=0)
-        slut_idx = c2.selectbox("Till", SURAH_LISTA, index=10)
+        start = c1.selectbox("Från", SURAH_LISTA, index=0)
+        slut  = c2.selectbox("Till",  SURAH_LISTA, index=10)
         if st.button("➕ Lägg till alla", type="primary", use_container_width=True):
-            i1, i2 = SURAH_LISTA.index(start_idx), SURAH_LISTA.index(slut_idx)
-            if i1 > i2: st.error("'Från' måste vara före 'Till'.")
+            i1, i2 = SURAH_LISTA.index(start), SURAH_LISTA.index(slut)
+            if i1 > i2:
+                st.error("'Från' måste komma före 'Till'.")
             else:
-                tillagda = 0
+                added = 0
                 for i in range(i1, i2 + 1):
                     namn = SURAH_LISTA[i]
                     if not any(d['namn'] == namn for d in st.session_state.db_data):
-                        st.session_state.db_data.append({"id": str(uuid.uuid4()), "namn": namn, "steg": 1, "nasta_repetition": today_str})
-                        tillagda += 1
-                if tillagda > 0:
+                        st.session_state.db_data.append({
+                            "id": str(uuid.uuid4()), "namn": namn,
+                            "steg": 1, "nasta_repetition": today_str
+                        })
+                        added += 1
+                if added > 0:
                     save_to_db(st.session_state.db_data)
-                    st.success(f"Lade till {tillagda} nya kapitel!")
+                    st.success(f"✓ {added} kapitel tillagda!")
+                else:
+                    st.info("Alla valda kapitel finns redan.")
