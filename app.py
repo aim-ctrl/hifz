@@ -297,6 +297,15 @@ equiv_juz = round(sum(
     / JUZ_TOTAL_WORDS[j]
     for j in range(1, 31) if JUZ_TOTAL_WORDS.get(j, 0) > 0
 ), 1)
+potential_equiv_juz = round(sum(
+    sum(JUZ_SURAH_WORDS[j].get(s, 0) for s in JUZ_SURAHS.get(j, []) if surah_step.get(s, 0) > 0)
+    / JUZ_TOTAL_WORDS[j]
+    for j in range(1, 31) if JUZ_TOTAL_WORDS.get(j, 0) > 0
+), 1)
+potential_juz_mastered = sum(
+    1 for j in range(1, 31)
+    if JUZ_SURAHS.get(j) and all(surah_step.get(s, 0) > 0 for s in JUZ_SURAHS[j])
+)
 
 # --- TABS ---
 tab_dash, tab_idag, tab_progress, tab_hantera, tab_lagg = st.tabs([
@@ -411,6 +420,11 @@ with tab_dash:
     <span style="font-size:0.75em;opacity:0.55;">juz totalt</span>
   </div>
   <div style="font-size:0.65em;opacity:0.5;margin-top:3px;">varav <b>{juz_fully_mastered}</b> kompletta · {mastered_words:,} av {TOTAL_WORDS:,} ord</div>
+  <div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border-color);display:flex;align-items:baseline;gap:5px;">
+    <span style="font-size:0.6em;opacity:0.45;">Om S1–S4 → S5:</span>
+    <span style="font-size:1.1em;font-weight:700;color:#b7950b;opacity:0.7;">{potential_equiv_juz}</span>
+    <span style="font-size:0.6em;opacity:0.4;">juz · varav <b>{potential_juz_mastered}</b> kompletta</span>
+  </div>
 </div>
 """, unsafe_allow_html=True)
 
