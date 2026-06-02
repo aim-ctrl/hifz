@@ -399,19 +399,19 @@ with tab_dash:
     # Juz-ekvivalent
     st.markdown(f"""
 <div style="background:var(--secondary-background-color);border-radius:10px;border:1px solid var(--border-color);padding:10px 12px;margin-bottom:10px;">
-  <div style="font-size:0.65em;opacity:0.5;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:6px;">Memorerade verser i juz</div>
+  <div style="font-size:0.65em;opacity:0.5;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:6px;">Memorerade ord i juz</div>
   <div style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;">
     <div>
       <span style="font-size:1.5em;font-weight:800;color:#1a7a4a;">{juz_fully_mastered}</span>
       <span style="font-size:0.7em;opacity:0.5;margin-left:2px;">kompletta juz</span>
     </div>
-    <div style="font-size:0.8em;opacity:0.4;">+</div>
+    <div style="font-size:0.8em;opacity:0.4;">≈</div>
     <div>
       <span style="font-size:1.5em;font-weight:800;color:#b7950b;">{equiv_juz}</span>
-      <span style="font-size:0.7em;opacity:0.5;margin-left:2px;">juz totalt (vers-ekvivalent)</span>
+      <span style="font-size:0.7em;opacity:0.5;margin-left:2px;">juz totalt (ord-ekvivalent)</span>
     </div>
   </div>
-  <div style="font-size:0.6em;opacity:0.4;margin-top:4px;">{mastered_verses:,} av {TOTAL_VERSES:,} verser · {TOTAL_VERSES//30} verser/juz i snitt</div>
+  <div style="font-size:0.6em;opacity:0.4;margin-top:4px;">{mastered_words:,} av {TOTAL_WORDS:,} ord · {TOTAL_WORDS//30:,} ord/juz i snitt</div>
 </div>
 """, unsafe_allow_html=True)
 
