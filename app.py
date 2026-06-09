@@ -352,10 +352,12 @@ mastered_count = steg_c[5]
 due_today = sum(1 for d in data if d["nasta_repetition"] <= today_str)
 
 surah_step = {}
+surah_retention = {}
 for d in data:
     try:
         num = int(d["namn"].split(".")[0])
         surah_step[num] = int(d.get("steg", 1))
+        surah_retention[num] = compute_retention(d, today)
     except Exception:
         pass
 
@@ -700,20 +702,21 @@ with tab_progress:
             f"<div style='display:grid;grid-template-columns:repeat(auto-fill,minmax(50px,1fr));gap:4px;'>"
         )
         for (num, name) in surahs_here:
-            step = surah_step.get(num, 0)
-            bg = STEP_COLORS.get(step, "#888")
+            step  = surah_step.get(num, 0)
+            r_val = surah_retention.get(num, 0.0)
+            r_pct = int(r_val * 100)
+            bg      = STEP_COLORS.get(step, "#888")
             text_c  = "white" if step > 0 else "var(--text-color)"
-            opacity = "1"    if step > 0 else "0.38"
-            tooltip = f"{num}. {name} (S{step})"
+            opacity = f"{max(0.35, r_val):.2f}" if step > 0 else "0.38"
+            r_label = f"{r_pct}%" if step > 0 else ""
+            tooltip = f"{num}. {name} — S{step}, retention {r_pct}%"
             grid_html += (
                 f"<div title='{tooltip}' style='background:{bg};color:{text_c};opacity:{opacity};"
                 f"aspect-ratio:1;border-radius:5px;display:flex;flex-direction:column;"
                 f"align-items:center;justify-content:center;padding:2px;"
                 f"border:1px solid var(--border-color);overflow:hidden;cursor:help;'>"
                 f"<div style='font-size:0.88em;font-weight:800;line-height:1;'>{num}</div>"
-                f"<div style='font-size:0.43em;text-align:center;line-height:1.1;margin-top:2px;"
-                f"display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;"
-                f"overflow:hidden;width:100%;'>{name}</div>"
+                f"<div style='font-size:0.5em;margin-top:2px;opacity:0.9;'>{r_label}</div>"
                 f"</div>"
             )
         grid_html += "</div></div>"
