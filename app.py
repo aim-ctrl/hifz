@@ -120,48 +120,56 @@ for _s in range(1, 115):
 JUZ_TOTAL_WORDS = {j: sum(v.values()) for j, v in JUZ_SURAH_WORDS.items()}
 JUZ_SURAHS = {j: list(sw.keys()) for j, sw in JUZ_SURAH_WORDS.items()}
 
-STEP_COLORS = {
-    0: "rgba(128,128,128,0.12)",
-    1: "#c0392b", 2: "#d68910", 3: "#b7950b", 4: "#1a6fa8", 5: "#1a7a4a",
-}
-
 # --- CONTINUOUS SRS ALGORITHM ---
-# Retention model: R = e^(-t/S)
-#   S = memory stability in days (time constant of the decay curve)
-#   t = elapsed days since last review
-#   R_target = 0.90  →  optimal_interval = -S·ln(0.90) = LN_TARGET·S
-LN_TARGET: float = -math.log(0.90)      # ≈ 0.10536
-
-# Reference S-values used as thresholds for the display badge (steg 1–5)
+# R = e^(-t/S)  — S = stability (days), t = elapsed days, R_target = 0.90
+LN_TARGET: float = -math.log(0.90)        # ≈ 0.10536
 STEP_TO_S: dict[int, float] = {1: 1.0, 2: 2.8, 3: 7.84, 4: 21.95, 5: 61.47}
-
 GRADE_OPTIONS = ["🔄 Igen", "⚠️ Svårt", "✅ Bra", "🚀 Utmärkt"]
+MASTERED_S: float = 36.7    # S ≥ this → considered mastered
+
+# Retention histogram buckets and colours
+RET_COLORS = ["#c0392b", "#d48f00", "#b7950b", "#1a6fa8", "#1a7a4a"]
+RET_LABELS = ["0–20%", "20–40%", "40–60%", "60–80%", "80–100%"]
+
+
+def s_to_color_rgb(s: float) -> tuple:
+    """Log-scale S → RGB: red(S≈1) → orange → yellow → blue → green(S≈200+)."""
+    stops = [
+        (0.0, (192,  57,  43)),
+        (1.6, (211,  84,   0)),
+        (2.7, (183, 149,  11)),
+        (3.9, ( 26, 111, 168)),
+        (5.3, ( 26, 122,  74)),
+    ]
+    ls = min(math.log(max(1.0, s)), stops[-1][0])
+    for i in range(len(stops) - 1):
+        lo, c1 = stops[i]
+        hi, c2 = stops[i + 1]
+        if ls <= hi:
+            t = (ls - lo) / (hi - lo)
+            return tuple(int(c1[j] + t * (c2[j] - c1[j])) for j in range(3))
+    return stops[-1][1]
+
+
+def s_to_css(s: float, alpha: float = 1.0) -> str:
+    r, g, b = s_to_color_rgb(s)
+    return f"rgba({r},{g},{b},{alpha:.2f})"
 
 
 def s_to_steg(s: float) -> int:
-    """Map continuous stability to display-badge integer (1–5).
-
-    Thresholds are geometric midpoints between the canonical STEP_TO_S values:
-      sqrt(1.0·2.8)≈1.67, sqrt(2.8·7.84)≈4.69, sqrt(7.84·21.95)≈13.1, sqrt(21.95·61.47)≈36.7
-    """
-    if s < 1.67:
-        return 1
-    if s < 4.69:
-        return 2
-    if s < 13.1:
-        return 3
-    if s < 36.7:
-        return 4
+    """Kept only for backward-compat writes to the 'steg' DB field."""
+    if s < 1.67: return 1
+    if s < 4.69: return 2
+    if s < 13.1: return 3
+    if s < 36.7: return 4
     return 5
 
 
 def get_stability(item: dict) -> float:
-    """Return the stored stability, falling back to the canonical S for the stored steg."""
     return float(item.get("stability", STEP_TO_S.get(int(item.get("steg", 1)), 1.0)))
 
 
 def compute_retention(item: dict, today: datetime.date) -> float:
-    """Estimate current retention R = e^(-elapsed/S)."""
     s = get_stability(item)
     raw = item.get("last_reviewed") or item.get("nasta_repetition") or str(today)
     try:
@@ -203,85 +211,49 @@ def delete_item(item_id):
         d for d in st.session_state.db_data if str(d["id"]) != str(item_id)
     ]
     save_to_db(st.session_state.db_data)
-    st.toast("🗑️ Borttaget.")
+    st.toast("Borttaget.")
 
 
 def graded_action_callback(item_id, key):
-    """Unified 4-tier grading callback. Reads the selected grade from st.session_state[key]."""
     grade = st.session_state.get(key)
     if not grade:
         return
-
     today = datetime.date.today()
     today_str = str(today)
-
     for d in st.session_state.db_data:
         if str(d["id"]) != str(item_id):
             continue
-
         s_old = get_stability(d)
         raw_lr = d.get("last_reviewed") or today_str
         try:
             last_rev = datetime.date.fromisoformat(raw_lr)
         except ValueError:
             last_rev = today
-
-        elapsed = max(0, (today - last_rev).days)
+        elapsed  = max(0, (today - last_rev).days)
         expected = LN_TARGET * s_old
-        # interval_ratio rewards on-time reviews; bounded to prevent runaway scheduling
-        ratio = max(0.5, min(2.5, elapsed / expected)) if expected > 0 else 1.0
+        ratio    = max(0.5, min(2.5, elapsed / expected)) if expected > 0 else 1.0
 
         if "Igen" in grade:
-            # Severe failure — reset stability to floor, review again today
-            s_new = 1.0
+            s_new     = 1.0
             next_date = today_str
         elif "Svårt" in grade:
-            # Hesitant success — grow slowly
-            s_new = s_old * 1.3
+            s_new     = s_old * 1.3
             next_date = str(today + datetime.timedelta(days=max(1, round(LN_TARGET * s_new))))
         elif "Bra" in grade:
-            # Normal recall — standard growth
-            s_new = s_old * (2.6 * (0.8 + 0.2 * ratio))
+            s_new     = s_old * (2.6 * (0.8 + 0.2 * ratio))
             next_date = str(today + datetime.timedelta(days=max(1, round(LN_TARGET * s_new))))
         else:  # Utmärkt
-            # Effortless recall — accelerated growth
-            s_new = s_old * (4.2 * (0.7 + 0.3 * ratio))
+            s_new     = s_old * (4.2 * (0.7 + 0.3 * ratio))
             next_date = str(today + datetime.timedelta(days=max(1, round(LN_TARGET * s_new))))
 
-        new_steg = s_to_steg(s_new)
-        d["stability"] = round(s_new, 4)
-        d["last_reviewed"] = today_str
+        d["stability"]        = round(s_new, 4)
+        d["last_reviewed"]    = today_str
         d["nasta_repetition"] = next_date
-        d["steg"] = new_steg
-
-        # Keep the manual step control in the Hantera tab in sync
-        seg_key = f"seg_{item_id}"
-        if seg_key in st.session_state:
-            st.session_state[seg_key] = new_steg
-
+        d["steg"]             = s_to_steg(s_new)   # kept for DB compat
         st.session_state[key] = None
-        st.toast(f"✓ {d['namn']} · S={s_new:.1f}")
+        st.toast(f"{d['namn']} · S={s_new:.1f}")
         break
-
     save_to_db(st.session_state.db_data)
-
-
-def step_change_callback(item_id, key):
-    """Manual step override in Hantera tab — maps the selected steg back to its canonical S."""
-    steg = st.session_state[key]
-    if steg is None:
-        return
-    for d in st.session_state.db_data:
-        if str(d["id"]) == str(item_id) and d.get("steg") != steg:
-            s = STEP_TO_S.get(steg, 1.0)
-            d["steg"] = steg
-            d["stability"] = s
-            interval = max(0, round(LN_TARGET * s))
-            d["nasta_repetition"] = str(
-                datetime.date.today() + datetime.timedelta(days=interval)
-            )
-            save_to_db(st.session_state.db_data)
-            break
 
 
 # --- CSS ---
@@ -340,51 +312,53 @@ footer { visibility: hidden; }
 """, unsafe_allow_html=True)
 
 # --- COMPUTED STATS ---
-data = st.session_state.db_data
-today = datetime.date.today()
+data     = st.session_state.db_data
+today    = datetime.date.today()
 today_str = str(today)
 
 total_added = len(data)
-steg_c = {i: 0 for i in range(1, 6)}
-for d in data:
-    steg_c[int(d.get("steg", 1))] += 1
-mastered_count = steg_c[5]
-due_today = sum(1 for d in data if d["nasta_repetition"] <= today_str)
 
-surah_step = {}
-surah_retention = {}
+surah_stability: dict[int, float] = {}
+surah_retention: dict[int, float] = {}
 for d in data:
     try:
         num = int(d["namn"].split(".")[0])
-        surah_step[num] = int(d.get("steg", 1))
+        surah_stability[num] = get_stability(d)
         surah_retention[num] = compute_retention(d, today)
     except Exception:
         pass
 
-mastered_verses = sum(SURAH_VERSES[n - 1] for n, s in surah_step.items() if s == 5)
-mastered_words  = sum(SURAH_WORDS[n - 1]  for n, s in surah_step.items() if s == 5)
-started_verses  = sum(SURAH_VERSES[n - 1] for n in surah_step)
-started_words   = sum(SURAH_WORDS[n - 1]  for n in surah_step)
+mastered_count  = sum(1 for s in surah_stability.values() if s >= MASTERED_S)
+mastered_verses = sum(SURAH_VERSES[n - 1] for n, s in surah_stability.items() if s >= MASTERED_S)
+mastered_words  = sum(SURAH_WORDS[n - 1]  for n, s in surah_stability.items() if s >= MASTERED_S)
+started_verses  = sum(SURAH_VERSES[n - 1] for n in surah_stability)
+started_words   = sum(SURAH_WORDS[n - 1]  for n in surah_stability)
+
+due_today = sum(1 for d in data if d["nasta_repetition"] <= today_str)
 
 juz_fully_mastered = sum(
-    1 for juz_num in range(1, 31)
-    if JUZ_SURAHS.get(juz_num) and all(surah_step.get(s, 0) == 5 for s in JUZ_SURAHS[juz_num])
+    1 for j in range(1, 31)
+    if JUZ_SURAHS.get(j) and all(surah_stability.get(s, 0) >= MASTERED_S for s in JUZ_SURAHS[j])
 )
-
 equiv_juz = round(sum(
-    sum(JUZ_SURAH_WORDS[j].get(s, 0) for s in JUZ_SURAHS.get(j, []) if surah_step.get(s, 0) == 5)
+    sum(JUZ_SURAH_WORDS[j].get(s, 0) for s in JUZ_SURAHS.get(j, []) if surah_stability.get(s, 0) >= MASTERED_S)
     / JUZ_TOTAL_WORDS[j]
     for j in range(1, 31) if JUZ_TOTAL_WORDS.get(j, 0) > 0
 ), 1)
 potential_equiv_juz = round(sum(
-    sum(JUZ_SURAH_WORDS[j].get(s, 0) for s in JUZ_SURAHS.get(j, []) if surah_step.get(s, 0) > 0)
+    sum(JUZ_SURAH_WORDS[j].get(s, 0) for s in JUZ_SURAHS.get(j, []) if s in surah_stability)
     / JUZ_TOTAL_WORDS[j]
     for j in range(1, 31) if JUZ_TOTAL_WORDS.get(j, 0) > 0
 ), 1)
 potential_juz_mastered = sum(
     1 for j in range(1, 31)
-    if JUZ_SURAHS.get(j) and all(surah_step.get(s, 0) > 0 for s in JUZ_SURAHS[j])
+    if JUZ_SURAHS.get(j) and all(s in surah_stability for s in JUZ_SURAHS[j])
 )
+
+# Retention histogram: 5 buckets 0-20%, 20-40%, …, 80-100%
+ret_buckets = [0] * 5
+for r in surah_retention.values():
+    ret_buckets[min(4, int(r * 5))] += 1
 
 # --- TABS ---
 tab_dash, tab_idag, tab_progress, tab_hantera, tab_lagg = st.tabs([
@@ -436,7 +410,7 @@ with tab_dash:
     <div style="background:var(--border-color);"></div>
     {big_stat("Ord", f"{mastered_words:,}", f"/{TOTAL_WORDS:,}", "#8e44ad")}
   </div>
-  <div style="font-size:0.65em;opacity:0.5;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:6px;">Besvarat (Steg 5)</div>
+  <div style="font-size:0.65em;opacity:0.5;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:6px;">Bemastrade (S≥{MASTERED_S:.0f})</div>
   {stat_row("Suror", mastered_count, 114, "#1a7a4a", pct_surah)}
   {stat_row("Juz", juz_fully_mastered, 30, "#b7950b", pct_juz)}
   {stat_row("Verser", mastered_verses, TOTAL_VERSES, "#1a6fa8", pct_verse)}
@@ -450,7 +424,7 @@ with tab_dash:
 
     st.markdown(f"""
 <div style="background:var(--secondary-background-color);border-radius:10px;border:1px solid var(--border-color);padding:12px;margin-bottom:10px;">
-  <div style="font-size:0.65em;opacity:0.5;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:8px;">Pågående (S1–S4)</div>
+  <div style="font-size:0.65em;opacity:0.5;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:8px;">Pagaende (S&lt;{MASTERED_S:.0f})</div>
   <div style="display:flex;justify-content:space-around;text-align:center;">
     <div>
       <div style="font-size:1.2em;font-weight:700;color:#d68910;">{in_prog_surah}</div>
@@ -470,25 +444,24 @@ with tab_dash:
 </div>
 """, unsafe_allow_html=True)
 
-    max_steg = max(steg_c.values()) if any(steg_c.values()) else 1
-    step_labels = {1: "S1", 2: "S2", 3: "S3", 4: "S4", 5: "S5"}
-    step_colors_list = ["#c0392b", "#d68910", "#b7950b", "#1a6fa8", "#1a7a4a"]
+    # Retention histogram
+    max_ret = max(ret_buckets) if any(ret_buckets) else 1
     bars_html = "<div style='display:flex;align-items:flex-end;gap:6px;height:60px;margin-top:4px;'>"
-    for i in range(1, 6):
-        h = int((steg_c[i] / max_steg) * 52) if max_steg else 0
+    for i in range(5):
+        h = int((ret_buckets[i] / max_ret) * 52) if max_ret else 0
         bars_html += (
             f"<div style='flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;'>"
-            f"<div style='font-size:0.6em;font-weight:600;color:{step_colors_list[i-1]};'>{steg_c[i]}</div>"
-            f"<div style='width:100%;height:{h}px;background:{step_colors_list[i-1]};"
+            f"<div style='font-size:0.6em;font-weight:600;color:{RET_COLORS[i]};'>{ret_buckets[i]}</div>"
+            f"<div style='width:100%;height:{h}px;background:{RET_COLORS[i]};"
             f"border-radius:3px 3px 0 0;min-height:3px;'></div>"
-            f"<div style='font-size:0.58em;opacity:0.5;'>{step_labels[i]}</div>"
+            f"<div style='font-size:0.5em;opacity:0.5;text-align:center;line-height:1.1;'>{RET_LABELS[i]}</div>"
             f"</div>"
         )
     bars_html += "</div>"
 
     st.markdown(f"""
 <div style="background:var(--secondary-background-color);border-radius:10px;border:1px solid var(--border-color);padding:12px;margin-bottom:10px;">
-  <div style="font-size:0.65em;opacity:0.5;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:4px;">Fördelning per steg</div>
+  <div style="font-size:0.65em;opacity:0.5;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:4px;">Retention-fordelning</div>
   {bars_html}
 </div>
 """, unsafe_allow_html=True)
@@ -502,7 +475,7 @@ with tab_dash:
   </div>
   <div style="font-size:0.65em;opacity:0.5;margin-top:3px;">varav <b>{juz_fully_mastered}</b> kompletta · {mastered_words:,} av {TOTAL_WORDS:,} ord</div>
   <div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border-color);display:flex;align-items:baseline;gap:5px;">
-    <span style="font-size:0.6em;opacity:0.45;">Om S1–S4 → S5:</span>
+    <span style="font-size:0.6em;opacity:0.45;">Om pagang. → bemasträd:</span>
     <span style="font-size:1.1em;font-weight:700;color:#b7950b;opacity:0.7;">{potential_equiv_juz}</span>
     <span style="font-size:0.6em;opacity:0.4;">juz · varav <b>{potential_juz_mastered}</b> kompletta</span>
   </div>
@@ -514,27 +487,44 @@ with tab_dash:
         st.markdown(f"""
 <div style="background:rgba(192,57,43,0.08);border-radius:10px;border:1px solid rgba(192,57,43,0.25);padding:10px 12px;">
   <div style="font-size:0.7em;font-weight:600;color:#c0392b;">🎯 {len(queue_today)} kapitel att repetera idag</div>
-  <div style="font-size:0.62em;opacity:0.6;margin-top:2px;">Gå till Session-fliken</div>
+  <div style="font-size:0.62em;opacity:0.6;margin-top:2px;">Ga till Session-fliken</div>
 </div>
 """, unsafe_allow_html=True)
     else:
         st.markdown("""
 <div style="background:rgba(26,122,74,0.08);border-radius:10px;border:1px solid rgba(26,122,74,0.25);padding:10px 12px;">
-  <div style="font-size:0.7em;font-weight:600;color:#1a7a4a;">✓ Inga repetitioner kvar idag</div>
+  <div style="font-size:0.7em;font-weight:600;color:#1a7a4a;">Inga repetitioner kvar idag</div>
 </div>
 """, unsafe_allow_html=True)
 
 
-# ===================== SESSION (IDAG + KOMM.) =====================
+# ===================== SESSION =====================
 with tab_idag:
-    queue = sorted(
-        [d for d in data if d["nasta_repetition"] <= today_str],
-        key=lambda x: x["nasta_repetition"],
-    )
-    kommande = sorted(
-        [d for d in data if d["nasta_repetition"] > today_str],
-        key=lambda x: x["nasta_repetition"],
-    )
+    queue    = sorted([d for d in data if d["nasta_repetition"] <= today_str], key=lambda x: x["nasta_repetition"])
+    kommande = sorted([d for d in data if d["nasta_repetition"] > today_str],  key=lambda x: x["nasta_repetition"])
+
+    def _session_card(item, key_prefix):
+        s_val   = get_stability(item)
+        r_val   = compute_retention(item, today)
+        r_pct   = int(r_val * 100)
+        chip_bg = s_to_css(s_val)
+        chip_lbl = f"{round(s_val)}d"
+        with st.container(border=True):
+            st.markdown(
+                f"<div style='display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;'>"
+                f"<b style='font-size:0.97em;'>{item['namn']}</b>"
+                f"<span style='font-size:0.7em;background:{chip_bg};color:white;"
+                f"padding:1px 7px;border-radius:10px;font-weight:600;'>{chip_lbl}</span>"
+                f"</div>",
+                unsafe_allow_html=True,
+            )
+            st.progress(r_val, text=f"Retention: {r_pct}%")
+            key = f"{key_prefix}{item['id']}"
+            st.segmented_control(
+                "", GRADE_OPTIONS, key=key,
+                label_visibility="collapsed",
+                on_change=graded_action_callback, args=(item["id"], key),
+            )
 
     if queue:
         st.markdown(
@@ -543,29 +533,9 @@ with tab_idag:
             unsafe_allow_html=True,
         )
         for item in queue:
-            with st.container(border=True):
-                step = int(item.get("steg", 1))
-                r_val = compute_retention(item, today)
-                r_pct = int(r_val * 100)
-
-                st.markdown(
-                    f"<div style='display:flex;justify-content:space-between;"
-                    f"align-items:center;margin-bottom:4px;'>"
-                    f"<b style='font-size:0.97em;'>{item['namn']}</b>"
-                    f"<span style='font-size:0.7em;background:{STEP_COLORS[step]};color:white;"
-                    f"padding:1px 7px;border-radius:10px;font-weight:600;'>S{step}</span>"
-                    f"</div>",
-                    unsafe_allow_html=True,
-                )
-                st.progress(r_val, text=f"Retention: {r_pct}%")
-                key = f"act_dag_{item['id']}"
-                st.segmented_control(
-                    "", GRADE_OPTIONS, key=key,
-                    label_visibility="collapsed",
-                    on_change=graded_action_callback, args=(item["id"], key),
-                )
+            _session_card(item, "act_dag_")
     else:
-        st.success("✓ Inga repetitioner kvar idag!")
+        st.success("Inga repetitioner kvar idag!")
 
     if kommande:
         st.markdown(
@@ -576,7 +546,6 @@ with tab_idag:
         by_date: dict = {}
         for item in kommande:
             by_date.setdefault(item["nasta_repetition"], []).append(item)
-
         for datum, items in sorted(by_date.items()):
             days_away = (datetime.date.fromisoformat(datum) - today).days
             day_label = f"om {days_away} dag{'ar' if days_away != 1 else ''}"
@@ -586,27 +555,7 @@ with tab_idag:
                 unsafe_allow_html=True,
             )
             for item in items:
-                with st.container(border=True):
-                    step = int(item.get("steg", 1))
-                    r_val = compute_retention(item, today)
-                    r_pct = int(r_val * 100)
-
-                    st.markdown(
-                        f"<div style='display:flex;justify-content:space-between;"
-                        f"align-items:center;margin-bottom:4px;'>"
-                        f"<b style='font-size:0.97em;'>{item['namn']}</b>"
-                        f"<span style='font-size:0.7em;background:{STEP_COLORS[step]};color:white;"
-                        f"padding:1px 7px;border-radius:10px;font-weight:600;'>S{step}</span>"
-                        f"</div>",
-                        unsafe_allow_html=True,
-                    )
-                    st.progress(r_val, text=f"Retention: {r_pct}%")
-                    key = f"act_kom_{item['id']}"
-                    st.segmented_control(
-                        "", GRADE_OPTIONS, key=key,
-                        label_visibility="collapsed",
-                        on_change=graded_action_callback, args=(item["id"], key),
-                    )
+                _session_card(item, "act_kom_")
 
 
 # ===================== PROGRESS =====================
@@ -620,8 +569,8 @@ with tab_progress:
     for juz_num in range(1, 31):
         surahs  = JUZ_SURAHS.get(juz_num, [])
         total_w = JUZ_TOTAL_WORDS.get(juz_num, 0)
-        mast_w  = sum(JUZ_SURAH_WORDS[juz_num].get(s, 0) for s in surahs if surah_step.get(s, 0) == 5)
-        start_w = sum(JUZ_SURAH_WORDS[juz_num].get(s, 0) for s in surahs if surah_step.get(s, 0) > 0)
+        mast_w  = sum(JUZ_SURAH_WORDS[juz_num].get(s, 0) for s in surahs if surah_stability.get(s, 0) >= MASTERED_S)
+        start_w = sum(JUZ_SURAH_WORDS[juz_num].get(s, 0) for s in surahs if s in surah_stability)
         pct     = mast_w / total_w if total_w else 0
         pct_lbl = f"{round(pct * 100)}%"
 
@@ -635,7 +584,7 @@ with tab_progress:
             bg, border = "rgba(128,128,128,0.1)", "var(--border-color)"
             text_c = sub_c = "var(--text-color)"
 
-        tooltip = f"Juz {juz_num}: {mast_w:,}/{total_w:,} ord bemästrade ({pct_lbl})"
+        tooltip = f"Juz {juz_num}: {mast_w:,}/{total_w:,} ord bemastrade ({pct_lbl})"
         juz_html += (
             f"<div title='{tooltip}' style='aspect-ratio:1;border-radius:6px;background:{bg};"
             f"border:1px solid {border};display:flex;flex-direction:column;"
@@ -649,9 +598,9 @@ with tab_progress:
         "<div style='display:flex;gap:10px;font-size:0.61em;margin-bottom:12px;opacity:0.6;flex-wrap:wrap;'>"
         "<span><span style='display:inline-block;width:8px;height:8px;border-radius:2px;"
         "background:rgba(128,128,128,0.12);border:1px solid var(--border-color);"
-        "vertical-align:middle;margin-right:3px;'></span>Ej påbörjad</span>"
+        "vertical-align:middle;margin-right:3px;'></span>Ej paaborjad</span>"
         "<span><span style='display:inline-block;width:8px;height:8px;border-radius:2px;"
-        "background:rgba(26,122,74,0.4);vertical-align:middle;margin-right:3px;'></span>Pågående</span>"
+        "background:rgba(26,122,74,0.4);vertical-align:middle;margin-right:3px;'></span>Pagaende</span>"
         "<span><span style='display:inline-block;width:8px;height:8px;border-radius:2px;"
         "background:#1a7a4a;vertical-align:middle;margin-right:3px;'></span>Klar</span>"
         "</div>"
@@ -675,21 +624,23 @@ with tab_progress:
             continue
 
         total_w_bar = JUZ_TOTAL_WORDS.get(juz_num, 0)
-        words_per_step = {i: 0 for i in range(1, 6)}
-        for s_num, s_wds in JUZ_SURAH_WORDS.get(juz_num, {}).items():
-            st_val = surah_step.get(s_num, 0)
-            if st_val > 0:
-                words_per_step[st_val] += s_wds
-        mastered_w_bar = words_per_step[5]
-
-        seg_colors = {1: "#c0392b", 2: "#d68910", 3: "#b7950b", 4: "#1a6fa8", 5: "#1a7a4a"}
+        mast_w_bar  = sum(
+            JUZ_SURAH_WORDS[juz_num].get(s, 0)
+            for s in JUZ_SURAH_WORDS.get(juz_num, {})
+            if surah_stability.get(s, 0) >= MASTERED_S
+        )
+        prog_w_bar  = sum(
+            JUZ_SURAH_WORDS[juz_num].get(s, 0)
+            for s in JUZ_SURAH_WORDS.get(juz_num, {})
+            if s in surah_stability and surah_stability.get(s, 0) < MASTERED_S
+        )
+        mast_pct = round(mast_w_bar / total_w_bar * 100, 1) if total_w_bar else 0
+        prog_pct = round(prog_w_bar / total_w_bar * 100, 1) if total_w_bar else 0
         segments = ""
-        for step_i in range(1, 6):
-            wp = round(words_per_step[step_i] / total_w_bar * 100, 1) if total_w_bar else 0
-            if wp > 0:
-                segments += (
-                    f"<div style='width:{wp}%;background:{seg_colors[step_i]};height:100%;'></div>"
-                )
+        if mast_pct > 0:
+            segments += f"<div style='width:{mast_pct}%;background:#1a7a4a;height:100%;'></div>"
+        if prog_pct > 0:
+            segments += f"<div style='width:{prog_pct}%;background:rgba(26,122,74,0.35);height:100%;'></div>"
 
         grid_html += (
             f"<div style='margin-bottom:11px;'>"
@@ -697,21 +648,30 @@ with tab_progress:
             f"<span style='font-size:0.65em;font-weight:700;opacity:0.45;white-space:nowrap;'>Juz {juz_num}</span>"
             f"<div style='flex:1;height:4px;background:rgba(128,128,128,0.15);border-radius:2px;"
             f"display:flex;overflow:hidden;'>{segments}</div>"
-            f"<span style='font-size:0.58em;opacity:0.4;'>{mastered_w_bar}/{total_w_bar}ord</span>"
+            f"<span style='font-size:0.58em;opacity:0.4;'>{mast_w_bar}/{total_w_bar}ord</span>"
             f"</div>"
             f"<div style='display:grid;grid-template-columns:repeat(auto-fill,minmax(50px,1fr));gap:4px;'>"
         )
         for (num, name) in surahs_here:
-            step  = surah_step.get(num, 0)
-            r_val = surah_retention.get(num, 0.0)
-            r_pct = int(r_val * 100)
-            bg      = STEP_COLORS.get(step, "#888")
-            text_c  = "white" if step > 0 else "var(--text-color)"
-            opacity = f"{max(0.35, r_val):.2f}" if step > 0 else "0.38"
-            r_label = f"{r_pct}%" if step > 0 else ""
-            tooltip = f"{num}. {name} — S{step}, retention {r_pct}%"
+            s_val   = surah_stability.get(num, 0.0)
+            r_val   = surah_retention.get(num, 0.0)
+            r_pct   = int(r_val * 100)
+            started = num in surah_stability
+
+            if started:
+                bg         = s_to_css(s_val, max(0.25, r_val))
+                text_c     = "white"
+                cell_op    = "1"
+                r_label    = f"{r_pct}%"
+            else:
+                bg         = "rgba(128,128,128,0.10)"
+                text_c     = "var(--text-color)"
+                cell_op    = "0.38"
+                r_label    = ""
+
+            tooltip = f"{num}. {name} — S={s_val:.1f}, retention {r_pct}%"
             grid_html += (
-                f"<div title='{tooltip}' style='background:{bg};color:{text_c};opacity:{opacity};"
+                f"<div title='{tooltip}' style='background:{bg};color:{text_c};opacity:{cell_op};"
                 f"aspect-ratio:1;border-radius:5px;display:flex;flex-direction:column;"
                 f"align-items:center;justify-content:center;padding:2px;"
                 f"border:1px solid var(--border-color);overflow:hidden;cursor:help;'>"
@@ -724,59 +684,46 @@ with tab_progress:
             )
         grid_html += "</div></div>"
 
-    labels_map = {0: "Ej", 1: "S1", 2: "S2", 3: "S3", 4: "S4", 5: "S5"}
+    # Gradient legend replacing old S1–S5 step legend
     grid_html += (
-        "<div style='display:flex;justify-content:space-between;font-size:0.61em;margin-top:2px;'>"
+        "<div style='display:flex;align-items:center;gap:8px;font-size:0.58em;margin-top:6px;opacity:0.55;'>"
+        "<span style='white-space:nowrap;'>S=1</span>"
+        "<div style='flex:1;height:6px;border-radius:3px;background:linear-gradient(to right,"
+        "rgba(192,57,43,1) 0%,rgba(211,84,0,1) 25%,rgba(183,149,11,1) 50%,"
+        "rgba(26,111,168,1) 75%,rgba(26,122,74,1) 100%);'></div>"
+        "<span style='white-space:nowrap;'>S=200+</span>"
+        "<span style='opacity:0.6;margin-left:6px;'>· opacity = retention</span>"
+        "</div>"
     )
-    for s, c in STEP_COLORS.items():
-        grid_html += (
-            f"<span style='display:flex;align-items:center;gap:3px;'>"
-            f"<span style='width:8px;height:8px;border-radius:2px;background:{c};"
-            f"border:1px solid var(--border-color);display:inline-block;'></span>"
-            f"{labels_map[s]}</span>"
-        )
-    grid_html += "</div>"
     st.markdown(grid_html, unsafe_allow_html=True)
 
 
 # ===================== HANTERA =====================
 with tab_hantera:
-    search = st.text_input("🔍 Sök surah...", "", placeholder="Namn...")
+    search   = st.text_input("Sok surah...", "", placeholder="Namn...")
     filtered = [d for d in data if search.lower() in d["namn"].lower()]
-
-    def sort_key(item):
-        try:
-            return int(item["namn"].split(".")[0])
-        except Exception:
-            return 999
-
-    filtered.sort(key=sort_key)
+    filtered.sort(key=lambda x: int(x["namn"].split(".")[0]) if x["namn"].split(".")[0].isdigit() else 999)
 
     if not filtered:
         st.info("Inga kapitel hittades.")
 
     for item in filtered:
         with st.container(border=True):
-            step  = int(item.get("steg", 1))
-            s_val = get_stability(item)
-            st.markdown(
-                f"<div style='display:flex;justify-content:space-between;"
-                f"align-items:center;margin-bottom:5px;'>"
-                f"<b style='font-size:0.95em;'>{item['namn']}</b>"
-                f"<span style='font-size:0.66em;opacity:0.45;'>"
-                f"S={s_val:.1f} · {item['nasta_repetition']}</span>"
-                f"</div>",
-                unsafe_allow_html=True,
-            )
+            s_val   = get_stability(item)
+            r_val   = compute_retention(item, today)
+            chip_bg = s_to_css(s_val)
             c1, c2 = st.columns([5, 1], vertical_alignment="center")
             with c1:
-                key = f"seg_{item['id']}"
-                if key not in st.session_state:
-                    st.session_state[key] = int(item["steg"])
-                st.segmented_control(
-                    "", options=[1, 2, 3, 4, 5], key=key,
-                    label_visibility="collapsed",
-                    on_change=step_change_callback, args=(item["id"], key),
+                st.markdown(
+                    f"<div style='display:flex;justify-content:space-between;align-items:center;'>"
+                    f"<b style='font-size:0.95em;'>{item['namn']}</b>"
+                    f"<span style='font-size:0.66em;background:{chip_bg};color:white;"
+                    f"padding:1px 8px;border-radius:10px;font-weight:600;'>"
+                    f"S={s_val:.0f}d · {int(r_val*100)}%</span>"
+                    f"</div>"
+                    f"<div style='font-size:0.62em;opacity:0.45;margin-top:2px;'>"
+                    f"Nasta: {item['nasta_repetition']}</div>",
+                    unsafe_allow_html=True,
                 )
             with c2:
                 st.button(
@@ -786,13 +733,13 @@ with tab_hantera:
                 )
 
 
-# ===================== LÄGG TILL =====================
+# ===================== LAGG TILL =====================
 with tab_lagg:
     metod = st.segmented_control("Metod", ["Enskilt", "Bulk"], default="Enskilt")
 
     if metod == "Enskilt":
         vald = st.selectbox("Surah", SURAH_LISTA)
-        if st.button("➕ Lägg till", type="primary", use_container_width=True):
+        if st.button("Lagg till", type="primary", use_container_width=True):
             if not any(d["namn"] == vald for d in st.session_state.db_data):
                 st.session_state.db_data.append({
                     "id": str(uuid.uuid4()),
@@ -803,17 +750,17 @@ with tab_lagg:
                     "nasta_repetition": today_str,
                 })
                 save_to_db(st.session_state.db_data)
-                st.success(f"✓ {vald} tillagd!")
+                st.success(f"{vald} tillagd!")
             else:
                 st.warning("Finns redan i din lista.")
     else:
         c1, c2 = st.columns(2)
-        start = c1.selectbox("Från", SURAH_LISTA, index=0)
-        slut  = c2.selectbox("Till",  SURAH_LISTA, index=10)
-        if st.button("➕ Lägg till alla", type="primary", use_container_width=True):
+        start = c1.selectbox("Fran", SURAH_LISTA, index=0)
+        slut  = c2.selectbox("Till", SURAH_LISTA, index=10)
+        if st.button("Lagg till alla", type="primary", use_container_width=True):
             i1, i2 = SURAH_LISTA.index(start), SURAH_LISTA.index(slut)
             if i1 > i2:
-                st.error("'Från' måste komma före 'Till'.")
+                st.error("'Fran' maste komma fore 'Till'.")
             else:
                 added = 0
                 for i in range(i1, i2 + 1):
@@ -830,6 +777,6 @@ with tab_lagg:
                         added += 1
                 if added > 0:
                     save_to_db(st.session_state.db_data)
-                    st.success(f"✓ {added} kapitel tillagda!")
+                    st.success(f"{added} kapitel tillagda!")
                 else:
                     st.info("Alla valda kapitel finns redan.")
