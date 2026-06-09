@@ -237,7 +237,7 @@ def graded_action_callback(item_id, key):
             s_new     = 1.0
             next_date = today_str
         elif "Svårt" in grade:
-            s_new     = s_old * 1.3
+            s_new     = max(1.0, s_old * (0.75 + 0.35 * ratio))
             next_date = str(today + datetime.timedelta(days=max(1, round(LN_TARGET * s_new))))
         elif "Bra" in grade:
             s_new     = s_old * (2.6 * (0.8 + 0.2 * ratio))
