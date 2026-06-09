@@ -716,7 +716,10 @@ with tab_progress:
                 f"align-items:center;justify-content:center;padding:2px;"
                 f"border:1px solid var(--border-color);overflow:hidden;cursor:help;'>"
                 f"<div style='font-size:0.88em;font-weight:800;line-height:1;'>{num}</div>"
-                f"<div style='font-size:0.5em;margin-top:2px;opacity:0.9;'>{r_label}</div>"
+                f"<div style='font-size:0.43em;text-align:center;line-height:1.1;margin-top:2px;"
+                f"display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;"
+                f"overflow:hidden;width:100%;'>{name}</div>"
+                f"<div style='font-size:0.45em;margin-top:2px;opacity:0.85;'>{r_label}</div>"
                 f"</div>"
             )
         grid_html += "</div></div>"
