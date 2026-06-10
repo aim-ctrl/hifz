@@ -509,12 +509,12 @@ with tab_dash:
 # ===================== SESSION =====================
 with tab_idag:
     queue    = sorted([d for d in data if d["nasta_repetition"] <= today_str], key=lambda x: compute_retention(x, today))
-    kommande = sorted([d for d in data if d["nasta_repetition"] > today_str],  key=lambda x: x["nasta_repetition"])
+    kommande = sorted([d for d in data if d["nasta_repetition"] > today_str],  key=lambda x: compute_retention(x, today))
 
     st.markdown("""
 <style>
 [data-testid="stSegmentedControl"] button {
-    font-size: 0.41em !important;
+    font-size: 0.28em !important;
     padding: 2px 6px !important;
     min-height: 0 !important;
 }
