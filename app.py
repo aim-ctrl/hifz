@@ -127,9 +127,17 @@ STEP_TO_S: dict[int, float] = {1: 1.0, 2: 2.8, 3: 7.84, 4: 21.95, 5: 61.47}
 GRADE_OPTIONS = ["🔄 Igen", "⚠️ Svårt", "✅ Bra", "🚀 Utmärkt"]
 MASTERED_S: float = 36.7    # S ≥ this → considered mastered
 
-# Retention histogram buckets and colours
-RET_COLORS = ["#c0392b", "#d48f00", "#b7950b", "#1a6fa8", "#1a7a4a"]
-RET_LABELS = ["0–20%", "20–40%", "40–60%", "60–80%", "80–100%"]
+# Retention histogram buckets and colours (10 bins, 10 % each)
+# <60 % red, 60-80 % yellow, 80-90 % blue, 90-100 % green
+def _ret_color(bin_idx: int) -> str:
+    pct = bin_idx * 10
+    if pct < 60:   return "#c0392b"   # red
+    if pct < 80:   return "#d4a017"   # yellow
+    if pct < 90:   return "#1a6fa8"   # blue
+    return "#1a7a4a"                   # green
+
+RET_COLORS = [_ret_color(i) for i in range(10)]
+RET_LABELS = [f"{i*10}–{i*10+10}%" for i in range(10)]
 
 
 def s_to_color_rgb(s: float) -> tuple:
@@ -355,10 +363,10 @@ potential_juz_mastered = sum(
     if JUZ_SURAHS.get(j) and all(s in surah_stability for s in JUZ_SURAHS[j])
 )
 
-# Retention histogram: 5 buckets 0-20%, 20-40%, …, 80-100%
-ret_buckets = [0] * 5
+# Retention histogram: 10 buckets 0-10%, 10-20%, …, 90-100%
+ret_buckets = [0] * 10
 for r in surah_retention.values():
-    ret_buckets[min(4, int(r * 5))] += 1
+    ret_buckets[min(9, int(r * 10))] += 1
 
 # --- TABS ---
 tab_dash, tab_idag, tab_progress, tab_hantera, tab_lagg = st.tabs([
@@ -447,7 +455,7 @@ with tab_dash:
     # Retention histogram
     max_ret = max(ret_buckets) if any(ret_buckets) else 1
     bars_html = "<div style='display:flex;align-items:flex-end;gap:6px;height:60px;margin-top:4px;'>"
-    for i in range(5):
+    for i in range(10):
         h = int((ret_buckets[i] / max_ret) * 52) if max_ret else 0
         bars_html += (
             f"<div style='flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;'>"
