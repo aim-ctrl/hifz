@@ -137,7 +137,7 @@ def _ret_color(bin_idx: int) -> str:
     return "#1a7a4a"                   # green
 
 RET_COLORS = [_ret_color(i) for i in range(10)]
-RET_LABELS = [f"{i*10}–{i*10+10}%" for i in range(10)]
+RET_LABELS = [f"{i*10:02d}–{i*10+10}%" for i in range(10)]
 
 
 def s_to_color_rgb(s: float) -> tuple:
@@ -508,25 +508,39 @@ with tab_dash:
 
 # ===================== SESSION =====================
 with tab_idag:
-    queue    = sorted([d for d in data if d["nasta_repetition"] <= today_str], key=lambda x: x["nasta_repetition"])
+    queue    = sorted([d for d in data if d["nasta_repetition"] <= today_str], key=lambda x: compute_retention(x, today))
     kommande = sorted([d for d in data if d["nasta_repetition"] > today_str],  key=lambda x: x["nasta_repetition"])
 
+    st.markdown("""
+<style>
+[data-testid="stSegmentedControl"] button {
+    font-size: 0.68em !important;
+    padding: 2px 6px !important;
+    min-height: 0 !important;
+}
+[data-testid="stSegmentedControl"] {
+    gap: 3px !important;
+}
+</style>
+""", unsafe_allow_html=True)
+
     def _session_card(item, key_prefix):
-        s_val   = get_stability(item)
-        r_val   = compute_retention(item, today)
-        r_pct   = int(r_val * 100)
-        chip_bg = s_to_css(s_val)
+        s_val    = get_stability(item)
+        r_val    = compute_retention(item, today)
+        r_pct    = int(r_val * 100)
+        chip_bg  = s_to_css(s_val)
         chip_lbl = f"{round(s_val)}d"
         with st.container(border=True):
             st.markdown(
-                f"<div style='display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;'>"
-                f"<b style='font-size:0.97em;'>{item['namn']}</b>"
-                f"<span style='font-size:0.7em;background:{chip_bg};color:white;"
-                f"padding:1px 7px;border-radius:10px;font-weight:600;'>{chip_lbl}</span>"
-                f"</div>",
+                f"<div style='display:flex;justify-content:space-between;align-items:center;'>"
+                f"<b style='font-size:0.9em;'>{item['namn']}</b>"
+                f"<span style='display:flex;gap:5px;align-items:center;'>"
+                f"<span style='font-size:0.68em;opacity:0.6;'>{r_pct}%</span>"
+                f"<span style='font-size:0.68em;background:{chip_bg};color:white;"
+                f"padding:1px 6px;border-radius:10px;font-weight:600;'>{chip_lbl}</span>"
+                f"</span></div>",
                 unsafe_allow_html=True,
             )
-            st.progress(r_val, text=f"Retention: {r_pct}%")
             key = f"{key_prefix}{item['id']}"
             st.segmented_control(
                 "", GRADE_OPTIONS, key=key,
