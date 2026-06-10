@@ -514,7 +514,7 @@ with tab_idag:
     st.markdown("""
 <style>
 [data-testid="stSegmentedControl"] button {
-    font-size: 0.28em !important;
+    font-size: 0.15em !important;
     padding: 2px 6px !important;
     min-height: 0 !important;
 }
