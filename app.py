@@ -520,6 +520,11 @@ with tab_idag:
 }
 [data-testid="stSegmentedControl"] {
     gap: 3px !important;
+    flex-wrap: nowrap !important;
+}
+[data-testid="stSegmentedControl"] button {
+    white-space: nowrap !important;
+    flex-shrink: 1 !important;
 }
 </style>
 """, unsafe_allow_html=True)
