@@ -514,7 +514,7 @@ with tab_idag:
     st.markdown("""
 <style>
 [data-testid="stSegmentedControl"] button {
-    font-size: 0.68em !important;
+    font-size: 0.41em !important;
     padding: 2px 6px !important;
     min-height: 0 !important;
 }
@@ -549,35 +549,14 @@ with tab_idag:
             )
 
     if queue:
-        st.markdown(
-            f"<div style='font-size:0.72em;opacity:0.55;margin-bottom:6px;font-weight:600;'>"
-            f"IDAG · {len(queue)} kvar</div>",
-            unsafe_allow_html=True,
-        )
         for item in queue:
             _session_card(item, "act_dag_")
     else:
         st.success("Inga repetitioner kvar idag!")
 
     if kommande:
-        st.markdown(
-            f"<div style='font-size:0.72em;opacity:0.55;margin:14px 0 6px;font-weight:600;'>"
-            f"KOMMANDE · {len(kommande)} st</div>",
-            unsafe_allow_html=True,
-        )
-        by_date: dict = {}
         for item in kommande:
-            by_date.setdefault(item["nasta_repetition"], []).append(item)
-        for datum, items in sorted(by_date.items()):
-            days_away = (datetime.date.fromisoformat(datum) - today).days
-            day_label = f"om {days_away} dag{'ar' if days_away != 1 else ''}"
-            st.markdown(
-                f"<div style='font-size:0.65em;opacity:0.45;text-transform:uppercase;"
-                f"letter-spacing:0.04em;margin:8px 0 3px;'>{datum} · {day_label}</div>",
-                unsafe_allow_html=True,
-            )
-            for item in items:
-                _session_card(item, "act_kom_")
+            _session_card(item, "act_kom_")
 
 
 # ===================== PROGRESS =====================
