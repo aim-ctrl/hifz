@@ -661,7 +661,9 @@ with tab_progress:
             if started:
                 bg         = s_to_css(s_val, max(0.25, r_val))
                 text_c     = "white"
-                cell_op    = "1"
+                OP_MIN, OP_MAX = 0.35, 1.0
+                op_t       = max(0.0, min(1.0, (r_val - 0.60) / 0.40))
+                cell_op    = f"{OP_MIN + op_t * (OP_MAX - OP_MIN):.2f}"
                 r_label    = f"{r_pct}%"
             else:
                 bg         = "rgba(128,128,128,0.10)"
