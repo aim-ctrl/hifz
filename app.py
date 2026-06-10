@@ -124,7 +124,7 @@ JUZ_SURAHS = {j: list(sw.keys()) for j, sw in JUZ_SURAH_WORDS.items()}
 # R = e^(-t/S)  — S = stability (days), t = elapsed days, R_target = 0.90
 LN_TARGET: float = -math.log(0.90)        # ≈ 0.10536
 STEP_TO_S: dict[int, float] = {1: 1.0, 2: 2.8, 3: 7.84, 4: 21.95, 5: 61.47}
-GRADE_OPTIONS = ["🔄 Igen", "⚠️ Svårt", "✅ Bra", "🚀 Utmärkt"]
+GRADE_OPTIONS = ["🔄", "⚠️", "✅", "🚀"]
 MASTERED_S: float = 36.7    # S ≥ this → considered mastered
 
 # Retention histogram buckets and colours (10 bins, 10 % each)
@@ -241,16 +241,16 @@ def graded_action_callback(item_id, key):
         expected = LN_TARGET * s_old
         ratio    = max(0.5, min(2.5, elapsed / expected)) if expected > 0 else 1.0
 
-        if "Igen" in grade:
+        if grade == "🔄":
             s_new     = 1.0
             next_date = today_str
-        elif "Svårt" in grade:
+        elif grade == "⚠️":
             s_new     = max(1.0, s_old * (0.75 + 0.35 * ratio))
             next_date = str(today + datetime.timedelta(days=max(1, round(LN_TARGET * s_new))))
-        elif "Bra" in grade:
+        elif grade == "✅":
             s_new     = s_old * (2.6 * (0.8 + 0.2 * ratio))
             next_date = str(today + datetime.timedelta(days=max(1, round(LN_TARGET * s_new))))
-        else:  # Utmärkt
+        else:  # 🚀
             s_new     = s_old * (4.2 * (0.7 + 0.3 * ratio))
             next_date = str(today + datetime.timedelta(days=max(1, round(LN_TARGET * s_new))))
 
