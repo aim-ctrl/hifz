@@ -765,7 +765,7 @@ with tab_hantera:
             with ce:
                 new_s = st.number_input(
                     "S", min_value=S_MIN, max_value=S_MAX,
-                    value=float(round(s_val, 1)), step=1.0,
+                    value=float(max(S_MIN, min(S_MAX, round(s_val, 1)))), step=1.0,
                     key=f"ns_{item['id']}", label_visibility="collapsed",
                 )
             with csave:
