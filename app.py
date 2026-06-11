@@ -124,7 +124,18 @@ JUZ_SURAHS = {j: list(sw.keys()) for j, sw in JUZ_SURAH_WORDS.items()}
 # R = e^(-t/S)  — S = stability (days), t = elapsed days, R_target = 0.90
 LN_TARGET: float = -math.log(0.90)        # ≈ 0.10536
 STEP_TO_S: dict[int, float] = {1: 1.0, 2: 2.8, 3: 7.84, 4: 21.95, 5: 61.47}
-GRADE_OPTIONS = ["🔄", "⚠️", "✅", "🚀"]
+GRADE_OPTIONS = ["1 ❌", "2 ⚠️", "3 ✅", "4 👍", "5 🚀"]
+S_MIN: float = 1.0
+S_MAX: float = 300.0
+
+# Multiplier table: grade (1–5) × R-bucket (clamped to [0.6, 1.0])
+GRADE_MULT_TABLE: dict[int, dict[float, float]] = {
+    5: {1.0: 1.0, 0.9: 1.8, 0.8: 2.0, 0.7: 2.2, 0.6: 2.4},
+    4: {1.0: 1.0, 0.9: 1.5, 0.8: 1.7, 0.7: 1.9, 0.6: 2.1},
+    3: {1.0: 1.0, 0.9: 1.2, 0.8: 1.4, 0.7: 1.6, 0.6: 1.8},
+    2: {1.0: 0.7, 0.9: 0.8, 0.8: 0.9, 0.7: 1.0, 0.6: 1.1},
+    1: {1.0: 0.4, 0.9: 0.5, 0.8: 0.6, 0.7: 0.7, 0.6: 0.8},
+}
 MASTERED_S: float = 36.7    # S ≥ this → considered mastered
 
 # Retention histogram buckets and colours (10 bins, 10 % each)
@@ -162,6 +173,19 @@ def s_to_color_rgb(s: float) -> tuple:
 def s_to_css(s: float, alpha: float = 1.0) -> str:
     r, g, b = s_to_color_rgb(s)
     return f"rgba({r},{g},{b},{alpha:.2f})"
+
+
+def get_mult(grade: int, r: float) -> float:
+    """S multiplier via linear interpolation between R breakpoints."""
+    r_c = max(0.6, min(1.0, r))
+    row = GRADE_MULT_TABLE[grade]
+    bps = [1.0, 0.9, 0.8, 0.7, 0.6]
+    for i in range(len(bps) - 1):
+        r_hi, r_lo = bps[i], bps[i + 1]
+        if r_lo <= r_c <= r_hi:
+            t = (r_hi - r_c) / (r_hi - r_lo)
+            return row[r_hi] + t * (row[r_lo] - row[r_hi])
+    return row[0.6]
 
 
 def s_to_steg(s: float) -> int:
@@ -214,6 +238,23 @@ if "db_data" not in st.session_state:
     st.session_state.db_data = fetch_from_db()
 
 
+def update_stability(item_id, new_s_raw):
+    new_s = max(S_MIN, min(S_MAX, float(new_s_raw)))
+    for d in st.session_state.db_data:
+        if str(d["id"]) != str(item_id):
+            continue
+        d["stability"] = round(new_s, 4)
+        d["steg"] = s_to_steg(new_s)
+        try:
+            last_rev = datetime.date.fromisoformat(d.get("last_reviewed", str(datetime.date.today())))
+        except ValueError:
+            last_rev = datetime.date.today()
+        d["nasta_repetition"] = str(last_rev + datetime.timedelta(days=max(1, round(LN_TARGET * new_s))))
+        st.toast(f"{d['namn']} · S → {new_s:.1f}")
+        break
+    save_to_db(st.session_state.db_data)
+
+
 def delete_item(item_id):
     st.session_state.db_data = [
         d for d in st.session_state.db_data if str(d["id"]) != str(item_id)
@@ -223,41 +264,22 @@ def delete_item(item_id):
 
 
 def graded_action_callback(item_id, key):
-    grade = st.session_state.get(key)
-    if not grade:
+    grade_str = st.session_state.get(key)
+    if not grade_str:
         return
+    grade = int(grade_str[0])
     today = datetime.date.today()
     today_str = str(today)
     for d in st.session_state.db_data:
         if str(d["id"]) != str(item_id):
             continue
         s_old = get_stability(d)
-        raw_lr = d.get("last_reviewed") or today_str
-        try:
-            last_rev = datetime.date.fromisoformat(raw_lr)
-        except ValueError:
-            last_rev = today
-        elapsed  = max(0, (today - last_rev).days)
-        expected = LN_TARGET * s_old
-        ratio    = max(0.5, min(2.5, elapsed / expected)) if expected > 0 else 1.0
-
-        if grade == "🔄":
-            s_new     = 1.0
-            next_date = today_str
-        elif grade == "⚠️":
-            s_new     = max(1.0, s_old * (0.75 + 0.35 * ratio))
-            next_date = str(today + datetime.timedelta(days=max(1, round(LN_TARGET * s_new))))
-        elif grade == "✅":
-            s_new     = s_old * (2.6 * (0.8 + 0.2 * ratio))
-            next_date = str(today + datetime.timedelta(days=max(1, round(LN_TARGET * s_new))))
-        else:  # 🚀
-            s_new     = s_old * (4.2 * (0.7 + 0.3 * ratio))
-            next_date = str(today + datetime.timedelta(days=max(1, round(LN_TARGET * s_new))))
-
+        r_val = compute_retention(d, today)
+        s_new = max(S_MIN, min(S_MAX, s_old * get_mult(grade, r_val)))
         d["stability"]        = round(s_new, 4)
         d["last_reviewed"]    = today_str
-        d["nasta_repetition"] = next_date
-        d["steg"]             = s_to_steg(s_new)   # kept for DB compat
+        d["nasta_repetition"] = str(today + datetime.timedelta(days=max(1, round(LN_TARGET * s_new))))
+        d["steg"]             = s_to_steg(s_new)
         st.session_state[key] = None
         st.toast(f"{d['namn']} · S={s_new:.1f}")
         break
@@ -739,6 +761,17 @@ with tab_hantera:
                     on_click=delete_item, args=(item["id"],),
                     use_container_width=True,
                 )
+            ce, csave = st.columns([3, 1])
+            with ce:
+                new_s = st.number_input(
+                    "S", min_value=S_MIN, max_value=S_MAX,
+                    value=float(round(s_val, 1)), step=1.0,
+                    key=f"ns_{item['id']}", label_visibility="collapsed",
+                )
+            with csave:
+                if st.button("S ✏️", key=f"ss_{item['id']}", use_container_width=True):
+                    update_stability(item["id"], new_s)
+                    st.rerun()
 
 
 # ===================== LAGG TILL =====================
