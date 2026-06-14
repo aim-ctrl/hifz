@@ -126,7 +126,7 @@ LN_TARGET: float = -math.log(0.90)        # ≈ 0.10536
 STEP_TO_S: dict[int, float] = {1: 1.0, 2: 2.8, 3: 7.84, 4: 21.95, 5: 61.47}
 GRADE_OPTIONS = ["1 ❌", "2 ⚠️", "3 ✅", "4 👍", "5 🚀"]
 S_MIN: float = 1.0
-S_MAX: float = 300.0
+S_MAX: float = 500.0
 
 # Multiplier table: grade (1–5) × R-bucket (clamped to [0.6, 1.0])
 GRADE_MULT_TABLE: dict[int, dict[float, float]] = {
@@ -152,13 +152,13 @@ RET_LABELS = [f"{i*10:02d}–{i*10+10}%" for i in range(10)]
 
 
 def s_to_color_rgb(s: float) -> tuple:
-    """Log-scale S → RGB: red(S≈1) → orange → yellow → blue → green(S≈200+)."""
+    """Log-scale S → RGB: red(S≈1) → orange → yellow → blue → green(S≈500+)."""
     stops = [
         (0.0, (192,  57,  43)),
         (1.6, (211,  84,   0)),
         (2.7, (183, 149,  11)),
         (3.9, ( 26, 111, 168)),
-        (5.3, ( 26, 122,  74)),
+        (6.21, ( 26, 122,  74)),
     ]
     ls = min(math.log(max(1.0, s)), stops[-1][0])
     for i in range(len(stops) - 1):
@@ -678,7 +678,7 @@ with tab_progress:
             f"display:flex;overflow:hidden;'>{segments}</div>"
             f"<span style='font-size:0.58em;opacity:0.4;'>{mast_w_bar}/{total_w_bar}ord</span>"
             f"</div>"
-            f"<div style='display:grid;grid-template-columns:repeat(auto-fill,minmax(50px,1fr));gap:4px;'>"
+            f"<div style='display:grid;grid-template-columns:repeat(auto-fill,minmax(62px,1fr));gap:5px;'>"
         )
         for (num, name) in surahs_here:
             s_val   = surah_stability.get(num, 0.0)
@@ -721,7 +721,7 @@ with tab_progress:
         "<div style='flex:1;height:6px;border-radius:3px;background:linear-gradient(to right,"
         "rgba(192,57,43,1) 0%,rgba(211,84,0,1) 25%,rgba(183,149,11,1) 50%,"
         "rgba(26,111,168,1) 75%,rgba(26,122,74,1) 100%);'></div>"
-        "<span style='white-space:nowrap;'>S=200+</span>"
+        "<span style='white-space:nowrap;'>S=500+</span>"
         "<span style='opacity:0.6;margin-left:6px;'>· opacity = retention</span>"
         "</div>"
     )
