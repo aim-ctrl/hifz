@@ -659,17 +659,36 @@ with tab_progress:
         unsafe_allow_html=True,
     )
 
-    # 9-column grid — buttons labelled with number only (no retention text)
-    # so parseInt(p.textContent) is unambiguous in the JS below
+    # CSS: keep the 9-column grid horizontal on mobile (scroll instead of stack)
+    st.markdown("""<style>
+[data-testid="stHorizontalBlock"]:has([data-testid="column"]:nth-child(9)) {
+    flex-wrap: nowrap !important;
+    overflow-x: auto !important;
+    gap: 3px !important;
+    padding-bottom: 4px !important;
+    -webkit-overflow-scrolling: touch !important;
+}
+[data-testid="stHorizontalBlock"]:has([data-testid="column"]:nth-child(9)) > div {
+    min-width: 44px !important;
+    flex: 1 0 44px !important;
+    padding: 0 !important;
+}
+</style>""", unsafe_allow_html=True)
+
+    # 9-column grid — label = number + name + retention (JS extracts leading digits)
     gcols = st.columns(9)
     for _n in range(1, 115):
+        _name = raw_surah_names[_n - 1][:7]
+        _r = surah_retention.get(_n, 0.0) if _n in surah_stability else None
+        _rlbl = f"\n{int(_r * 100)}%" if _r is not None else ""
+        _label = f"{_n}\n{_name}{_rlbl}"
         with gcols[(_n - 1) % 9]:
-            if st.button(str(_n), key=f"sb_{_n}", use_container_width=True):
+            if st.button(_label, key=f"sb_{_n}", use_container_width=True):
                 st.session_state.grade_surah = _n
                 st.rerun()
 
-    # JavaScript: style the buttons with correct colours.
-    # st.components.v1.html() is served same-origin, so window.parent.document is accessible.
+    # JavaScript: colour + size the buttons. Extracts the leading number from the label
+    # so multi-line labels ("37\nAl-Ahzab\n97%") still match correctly.
     _js_colors = "{" + ",".join(
         f"{n}:['{bg}','{fg}',{op}]" for n, (bg, fg, op) in _clr.items()
     ) + "}"
@@ -684,22 +703,24 @@ function paint(){{
             if(b.closest('[role="dialog"]'))return;
             var p=b.querySelector('p');
             if(!p)return;
-            var n=parseInt(p.textContent.trim());
-            if(!n||n<1||n>114)return;
+            var m=p.textContent.match(/^(\d+)/);
+            if(!m)return;
+            var n=parseInt(m[1]);
+            if(n<1||n>114)return;
             var c=C[n];if(!c)return;
             var s=b.style;
             s.setProperty('background',c[0],'important');
             s.setProperty('color',c[1],'important');
             s.setProperty('opacity',c[2],'important');
             s.setProperty('border-color',c[0],'important');
-            s.setProperty('height','46px','important');
+            s.setProperty('height','58px','important');
             s.setProperty('padding','2px','important');
-            s.setProperty('font-size','0.78em','important');
+            s.setProperty('font-size','0.62em','important');
             s.setProperty('font-weight','800','important');
             s.setProperty('border-radius','5px','important');
             s.setProperty('width','100%','important');
             s.setProperty('min-width','0','important');
-            s.setProperty('line-height','1.1','important');
+            s.setProperty('line-height','1.15','important');
         }});
     }}catch(e){{}}
 }}
