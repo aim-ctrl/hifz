@@ -3,6 +3,7 @@ import requests
 import datetime
 import math
 import uuid
+import json
 st.set_page_config(page_title="Hifz", page_icon="📖", layout="centered")
 
 try:
@@ -560,20 +561,6 @@ with tab_dash:
 </div>
 """, unsafe_allow_html=True)
 
-    queue_today = [d for d in data if d["nasta_repetition"] <= today_str]
-    if queue_today:
-        st.markdown(f"""
-<div style="background:rgba(192,57,43,0.08);border-radius:10px;border:1px solid rgba(192,57,43,0.25);padding:10px 12px;">
-  <div style="font-size:0.7em;font-weight:600;color:#c0392b;">🎯 {len(queue_today)} kapitel att repetera idag</div>
-  <div style="font-size:0.62em;opacity:0.6;margin-top:2px;">Ga till Session-fliken</div>
-</div>
-""", unsafe_allow_html=True)
-    else:
-        st.markdown("""
-<div style="background:rgba(26,122,74,0.08);border-radius:10px;border:1px solid rgba(26,122,74,0.25);padding:10px 12px;">
-  <div style="font-size:0.7em;font-weight:600;color:#1a7a4a;">Inga repetitioner kvar idag</div>
-</div>
-""", unsafe_allow_html=True)
 
 
 
@@ -659,27 +646,32 @@ with tab_progress:
         unsafe_allow_html=True,
     )
 
-    # One st.columns(9) per row so that mobile stacking stays sequential (1,2,3…114)
+    # Build JS data: {n: [bg, fg, opacity, name, retention_str]}
+    _js_data = "{"
+    _js_data += ",".join(
+        "{n}:[{bg},{fg},{op},{nm},{ret}]".format(
+            n=n,
+            bg=json.dumps(bg),
+            fg=json.dumps(fg),
+            op=op,
+            nm=json.dumps(raw_surah_names[n - 1]),
+            ret=json.dumps(str(int(surah_retention.get(n, 0) * 100)) if n in surah_stability else ""),
+        )
+        for n, (bg, fg, op) in _clr.items()
+    )
+    _js_data += "}"
+
+    # One st.columns(9) per row — label is just the number; JS fills in name + retention
     for _row in range(math.ceil(114 / 9)):
         _gcols = st.columns(9)
         for _col in range(9):
             _n = _row * 9 + _col + 1
             if _n > 114:
                 break
-            _name = raw_surah_names[_n - 1]
-            _r = surah_retention.get(_n, 0.0) if _n in surah_stability else None
-            _rlbl = f"\n{int(_r * 100)}%" if _r is not None else ""
             with _gcols[_col]:
-                if st.button(f"{_n}\n{_name}{_rlbl}", key=f"sb_{_n}",
-                             use_container_width=True):
+                if st.button(str(_n), key=f"sb_{_n}", use_container_width=True):
                     st.session_state.grade_surah = _n
                     st.rerun()
-
-    # JavaScript: colour + size the buttons. Extracts the leading number from the label
-    # so multi-line labels ("37\nAl-Ahzab\n97%") still match correctly.
-    _js_colors = "{" + ",".join(
-        f"{n}:['{bg}','{fg}',{op}]" for n, (bg, fg, op) in _clr.items()
-    ) + "}"
     # CSS: tighten gaps between button rows and within each row
     st.markdown("""<style>
 [data-testid="stHorizontalBlock"]:has([data-testid="column"]:nth-child(9)) {
@@ -702,18 +694,19 @@ with tab_progress:
 
     st.components.v1.html(f"""<script>
 (function(){{
-var C={_js_colors};
+var C={_js_data};
+var busy=false;
 function paint(){{
+    if(busy)return; busy=true;
     try{{
         var doc=window.parent.document;
         doc.querySelectorAll('button[data-testid="stBaseButton-secondary"]').forEach(function(b){{
             if(b.closest('[role="dialog"]'))return;
             var p=b.querySelector('p');
             if(!p)return;
-            var m=p.textContent.match(/^(\d+)/);
-            if(!m)return;
-            var n=parseInt(m[1]);
-            if(n<1||n>114)return;
+            var numEl=p.querySelector('.hifz-n');
+            var n=numEl?parseInt(numEl.textContent):parseInt((p.textContent.match(/^(\d+)/)||[])[1]);
+            if(!n||n<1||n>114)return;
             var c=C[n];if(!c)return;
             var s=b.style;
             s.setProperty('background',c[0],'important');
@@ -721,23 +714,29 @@ function paint(){{
             s.setProperty('opacity',c[2],'important');
             s.setProperty('border-color',c[0],'important');
             s.setProperty('height','32px','important');
-            s.setProperty('padding','1px 2px','important');
+            s.setProperty('padding','1px 4px','important');
             s.setProperty('font-size','0.62em','important');
-            s.setProperty('font-weight','800','important');
             s.setProperty('border-radius','5px','important');
             s.setProperty('width','100%','important');
             s.setProperty('min-width','0','important');
-            s.setProperty('line-height','1.1','important');
             s.setProperty('overflow','hidden','important');
+            if(!numEl){{
+                var ret=c[4]?c[4]+'%':'';
+                p.innerHTML=
+                  "<span style='display:flex;align-items:center;width:100%;gap:2px;'>"
+                  +"<b class='hifz-n' style='flex:0 0 auto;font-weight:800;'>"+(n)+"</b>"
+                  +"<span style='flex:1;text-align:center;overflow:hidden;text-overflow:ellipsis;"
+                  +"white-space:nowrap;font-weight:400;'>"+c[3]+"</span>"
+                  +"<span style='flex:0 0 auto;text-align:right;font-weight:600;'>"+ret+"</span>"
+                  +"</span>";
+            }}
             var ec=b.closest('[data-testid="element-container"]');
             if(ec){{ec.style.setProperty('padding','0','important');
                     ec.style.setProperty('margin','0','important');}}
         }});
-    }}catch(e){{}}
+    }}finally{{busy=false;}}
 }}
-paint();
-setTimeout(paint,150);
-setTimeout(paint,600);
+paint();setTimeout(paint,150);setTimeout(paint,600);
 new MutationObserver(paint).observe(
     window.parent.document.body,{{childList:true,subtree:true,attributes:false}});
 }})();
