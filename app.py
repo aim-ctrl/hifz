@@ -286,6 +286,90 @@ def graded_action_callback(item_id, key):
     save_to_db(st.session_state.db_data)
 
 
+def _onclick(num: int) -> str:
+    return (
+        "(function(){var i=document.querySelector('input[placeholder=surahclicktrigger]');"
+        "if(i){var s=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set;"
+        "s.call(i,'%d');"
+        "i.dispatchEvent(new Event('input',{bubbles:true}))}})()" % num
+    )
+
+
+@st.dialog("Surah", width="small")
+def surah_dialog(num: int):
+    name = raw_surah_names[num - 1]
+    started = num in surah_stability
+    s_val = surah_stability.get(num, 2.0)
+    r_val = surah_retention.get(num, 1.0)
+
+    st.markdown(
+        f"<div style='font-size:1.05em;font-weight:700;'>{num}. {name}</div>"
+        f"<div style='font-size:0.75em;opacity:0.5;margin-bottom:10px;'>"
+        f"{'S=' + str(round(s_val,1)) + ' · R=' + str(int(r_val*100)) + '%' if started else 'Ej paaborjad'}"
+        f"</div>",
+        unsafe_allow_html=True,
+    )
+
+    st.markdown("<div style='font-size:0.8em;opacity:0.6;margin-bottom:4px;'>Betyg</div>",
+                unsafe_allow_html=True)
+    gcols = st.columns(5)
+    grade_hit = None
+    for i, col in enumerate(gcols):
+        with col:
+            if st.button(GRADE_OPTIONS[i], key=f"dg_{num}_{i+1}", use_container_width=True):
+                grade_hit = i + 1
+
+    new_s = st.number_input(
+        "S direkt",
+        min_value=S_MIN, max_value=S_MAX,
+        value=float(round(s_val, 1)), step=1.0,
+        key=f"ds_{num}",
+    )
+
+    col_save, col_cancel = st.columns(2)
+    with col_save:
+        save_clicked = st.button("Spara S", key=f"dss_{num}", type="primary", use_container_width=True)
+    with col_cancel:
+        if st.button("Stang", key=f"dca_{num}", use_container_width=True):
+            del st.session_state["grade_surah"]
+            st.rerun()
+
+    def _apply(new_stability: float):
+        new_stability = max(S_MIN, min(S_MAX, new_stability))
+        _today = datetime.date.today()
+        _today_str = str(_today)
+        nxt = str(_today + datetime.timedelta(days=max(1, round(LN_TARGET * new_stability))))
+        entry = next(
+            (d for d in st.session_state.db_data
+             if d["namn"].split(".")[0].strip() == str(num)), None
+        )
+        if entry is None:
+            st.session_state.db_data.append({
+                "id": str(uuid.uuid4()),
+                "namn": f"{num}. {name}",
+                "steg": s_to_steg(new_stability),
+                "stability": round(new_stability, 4),
+                "last_reviewed": _today_str,
+                "nasta_repetition": nxt,
+            })
+        else:
+            entry["stability"] = round(new_stability, 4)
+            entry["steg"] = s_to_steg(new_stability)
+            entry["last_reviewed"] = _today_str
+            entry["nasta_repetition"] = nxt
+        save_to_db(st.session_state.db_data)
+        del st.session_state["grade_surah"]
+        st.rerun()
+
+    if grade_hit is not None:
+        new_s_grade = (STEP_TO_S.get(grade_hit, 1.0) if not started
+                       else s_val * get_mult(grade_hit, r_val))
+        _apply(new_s_grade)
+
+    if save_clicked:
+        _apply(new_s)
+
+
 # --- CSS ---
 st.markdown("""
 <style>
@@ -295,47 +379,20 @@ footer { visibility: hidden; }
 
 .main .block-container {
     padding-top: 0.25rem !important;
-    padding-bottom: 130px !important;
+    padding-bottom: 20px !important;
     padding-left: 0.9rem !important;
     padding-right: 0.9rem !important;
     max-width: 520px !important;
 }
 
-[data-baseweb="tab-list"] {
-    position: fixed !important;
-    bottom: 50px !important; left: 0 !important; right: 0 !important;
-    z-index: 99999 !important;
-    background: var(--background-color) !important;
-    border-top: 1px solid var(--border-color) !important;
-    height: 58px !important;
-    padding: 0 !important;
-    gap: 0 !important;
-    display: flex !important;
-    justify-content: space-around !important;
-    align-items: stretch !important;
-    margin: 0 !important;
+/* Hide the JS trigger input */
+[data-testid="stTextInput"]:has(input[placeholder="surahclicktrigger"]) {
+    position: absolute !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+    height: 0 !important;
+    overflow: hidden !important;
 }
-[data-baseweb="tab"] {
-    flex: 1 !important;
-    height: 58px !important;
-    padding: 4px 1px !important;
-    display: flex !important;
-    flex-direction: column !important;
-    align-items: center !important;
-    justify-content: center !important;
-    font-size: 0.56em !important;
-    gap: 1px !important;
-    border: none !important;
-    min-width: 0 !important;
-    white-space: normal !important;
-    text-align: center !important;
-    line-height: 1.2 !important;
-}
-[data-baseweb="tab"][aria-selected="true"] {
-    color: #1a7a4a !important;
-    border-top: 2px solid #1a7a4a !important;
-}
-[data-baseweb="tab-highlight"], [data-baseweb="tab-border"] { display: none !important; }
 
 [data-testid="stVerticalBlockBorderWrapper"] > div { padding: 0.45rem 0.55rem !important; }
 </style>
@@ -390,10 +447,25 @@ ret_buckets = [0] * 10
 for r in surah_retention.values():
     ret_buckets[min(9, int(r * 10))] += 1
 
-# --- TABS ---
-tab_dash, tab_idag, tab_progress, tab_hantera, tab_lagg = st.tabs([
-    "🏠 Hem", "🎯 Session", "📊 Progress", "📚 Hantera", "➕ Nytt"
-])
+# --- DIALOG TRIGGER ---
+if "grade_surah" not in st.session_state:
+    st.session_state.grade_surah = None
+
+_clicked = st.session_state.get("surah_click", "")
+if _clicked:
+    try:
+        st.session_state.grade_surah = int(_clicked)
+    except ValueError:
+        pass
+    st.session_state.surah_click = ""
+
+if st.session_state.grade_surah:
+    surah_dialog(st.session_state.grade_surah)
+
+# --- SECTIONS (no tabs) ---
+tab_dash      = st.container()
+tab_idag      = st.container()
+tab_progress  = st.container()
 
 # ===================== DASHBOARD =====================
 with tab_dash:
@@ -588,6 +660,10 @@ with tab_idag:
 
 # ===================== PROGRESS =====================
 with tab_progress:
+    # Hidden input — JS writes surah number here to open dialog
+    st.text_input("", placeholder="surahclicktrigger", key="surah_click",
+                  label_visibility="collapsed")
+
     st.markdown(
         "<div style='font-size:0.68em;opacity:0.5;text-transform:uppercase;"
         "letter-spacing:0.04em;margin-bottom:7px;'>Juz (1–30)</div>",
@@ -701,10 +777,11 @@ with tab_progress:
 
             tooltip = f"{num}. {name} — S={s_val:.1f}, retention {r_pct}%"
             grid_html += (
-                f"<div title='{tooltip}' style='background:{bg};color:{text_c};opacity:{cell_op};"
+                f"<div title='{tooltip}' onclick=\"{_onclick(num)}\""
+                f" style='background:{bg};color:{text_c};opacity:{cell_op};"
                 f"aspect-ratio:1;border-radius:5px;display:flex;flex-direction:column;"
                 f"align-items:center;justify-content:center;padding:2px;"
-                f"border:1px solid var(--border-color);overflow:hidden;cursor:help;'>"
+                f"border:1px solid var(--border-color);overflow:hidden;cursor:pointer;'>"
                 f"<div style='font-size:0.88em;font-weight:800;line-height:1;'>{num}</div>"
                 f"<div style='font-size:0.43em;text-align:center;line-height:1.1;margin-top:2px;"
                 f"display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;"
@@ -727,97 +804,3 @@ with tab_progress:
     )
     st.markdown(grid_html, unsafe_allow_html=True)
 
-
-# ===================== HANTERA =====================
-with tab_hantera:
-    search   = st.text_input("Sok surah...", "", placeholder="Namn...")
-    filtered = [d for d in data if search.lower() in d["namn"].lower()]
-    filtered.sort(key=lambda x: int(x["namn"].split(".")[0]) if x["namn"].split(".")[0].isdigit() else 999)
-
-    if not filtered:
-        st.info("Inga kapitel hittades.")
-
-    for item in filtered:
-        with st.container(border=True):
-            s_val   = get_stability(item)
-            r_val   = compute_retention(item, today)
-            chip_bg = s_to_css(s_val)
-            c1, c2 = st.columns([5, 1], vertical_alignment="center")
-            with c1:
-                st.markdown(
-                    f"<div style='display:flex;justify-content:space-between;align-items:center;'>"
-                    f"<b style='font-size:0.95em;'>{item['namn']}</b>"
-                    f"<span style='font-size:0.66em;background:{chip_bg};color:white;"
-                    f"padding:1px 8px;border-radius:10px;font-weight:600;'>"
-                    f"S={s_val:.0f}d · {int(r_val*100)}%</span>"
-                    f"</div>"
-                    f"<div style='font-size:0.62em;opacity:0.45;margin-top:2px;'>"
-                    f"Nasta: {item['nasta_repetition']}</div>",
-                    unsafe_allow_html=True,
-                )
-            with c2:
-                st.button(
-                    "🗑️", key=f"del_{item['id']}",
-                    on_click=delete_item, args=(item["id"],),
-                    use_container_width=True,
-                )
-            ce, csave = st.columns([3, 1])
-            with ce:
-                new_s = st.number_input(
-                    "S", min_value=S_MIN, max_value=S_MAX,
-                    value=float(max(S_MIN, min(S_MAX, round(s_val, 1)))), step=1.0,
-                    key=f"ns_{item['id']}", label_visibility="collapsed",
-                )
-            with csave:
-                if st.button("S ✏️", key=f"ss_{item['id']}", use_container_width=True):
-                    update_stability(item["id"], new_s)
-                    st.rerun()
-
-
-# ===================== LAGG TILL =====================
-with tab_lagg:
-    metod = st.segmented_control("Metod", ["Enskilt", "Bulk"], default="Enskilt")
-
-    if metod == "Enskilt":
-        vald = st.selectbox("Surah", SURAH_LISTA)
-        if st.button("Lagg till", type="primary", use_container_width=True):
-            if not any(d["namn"] == vald for d in st.session_state.db_data):
-                st.session_state.db_data.append({
-                    "id": str(uuid.uuid4()),
-                    "namn": vald,
-                    "steg": s_to_steg(2.0),
-                    "stability": 2.0,
-                    "last_reviewed": today_str,
-                    "nasta_repetition": today_str,
-                })
-                save_to_db(st.session_state.db_data)
-                st.success(f"{vald} tillagd!")
-            else:
-                st.warning("Finns redan i din lista.")
-    else:
-        c1, c2 = st.columns(2)
-        start = c1.selectbox("Fran", SURAH_LISTA, index=0)
-        slut  = c2.selectbox("Till", SURAH_LISTA, index=10)
-        if st.button("Lagg till alla", type="primary", use_container_width=True):
-            i1, i2 = SURAH_LISTA.index(start), SURAH_LISTA.index(slut)
-            if i1 > i2:
-                st.error("'Fran' maste komma fore 'Till'.")
-            else:
-                added = 0
-                for i in range(i1, i2 + 1):
-                    namn = SURAH_LISTA[i]
-                    if not any(d["namn"] == namn for d in st.session_state.db_data):
-                        st.session_state.db_data.append({
-                            "id": str(uuid.uuid4()),
-                            "namn": namn,
-                            "steg": s_to_steg(2.0),
-                            "stability": 2.0,
-                            "last_reviewed": today_str,
-                            "nasta_repetition": today_str,
-                        })
-                        added += 1
-                if added > 0:
-                    save_to_db(st.session_state.db_data)
-                    st.success(f"{added} kapitel tillagda!")
-                else:
-                    st.info("Alla valda kapitel finns redan.")
