@@ -726,8 +726,14 @@ function paint(){{
             if(ec){{
                 ec.style.setProperty('padding','0','important');
                 ec.style.setProperty('margin','0','important');
-                var vb=ec.parentElement;
-                if(vb)vb.style.setProperty('gap','2px','important');
+                ec.style.setProperty('min-height','0','important');
+                var el=ec.parentElement;
+                while(el){{
+                    el.style.setProperty('gap','2px','important');
+                    el.style.setProperty('row-gap','2px','important');
+                    if(el.getAttribute('data-testid')==='stVerticalBlock')break;
+                    el=el.parentElement;
+                }}
             }}
         }});
     }}finally{{busy=false;}}
