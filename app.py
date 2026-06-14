@@ -286,14 +286,6 @@ def graded_action_callback(item_id, key):
     save_to_db(st.session_state.db_data)
 
 
-def _onclick(num: int) -> str:
-    return (
-        "(function(){var i=document.querySelector('input[placeholder=surahclicktrigger]');"
-        "if(i){var s=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set;"
-        "s.call(i,'%d');"
-        "i.dispatchEvent(new Event('input',{bubbles:true}))}})()" % num
-    )
-
 
 @st.dialog("Surah", width="small")
 def surah_dialog(num: int):
@@ -719,7 +711,7 @@ with tab_progress:
 
             tooltip = f"{num}. {name} — S={s_val:.1f}, retention {r_pct}%"
             grid_html += (
-                f"<button title='{tooltip}' onclick=\"{_onclick(num)}\""
+                f"<button data-surah='{num}' title='{tooltip}'"
                 f" style='background:{bg};color:{text_c};opacity:{cell_op};"
                 f"aspect-ratio:1;border-radius:5px;display:flex;flex-direction:column;"
                 f"align-items:center;justify-content:center;padding:2px;"
@@ -746,4 +738,31 @@ with tab_progress:
         "</div>"
     )
     st.markdown(grid_html, unsafe_allow_html=True)
+
+    # Inject click listeners from an iframe (scripts run here; window.parent.document is same-origin)
+    st.components.v1.html("""<script>
+(function(){
+  function attach(){
+    try {
+      var doc = window.parent.document;
+      doc.querySelectorAll('[data-surah]').forEach(function(el){
+        if(el._sl) return;
+        el._sl = true;
+        el.addEventListener('click', function(){
+          var n = this.getAttribute('data-surah');
+          var inp = doc.querySelector('input[placeholder="surahclicktrigger"]');
+          if(!inp) return;
+          var setter = Object.getOwnPropertyDescriptor(
+            window.parent.HTMLInputElement.prototype, 'value').set;
+          setter.call(inp, n);
+          inp.dispatchEvent(new Event('input', {bubbles:true}));
+        });
+      });
+    } catch(e){}
+  }
+  attach();
+  setTimeout(attach, 400);
+  setTimeout(attach, 1200);
+})();
+</script>""", height=1)
 
