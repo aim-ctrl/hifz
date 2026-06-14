@@ -463,9 +463,8 @@ if st.session_state.grade_surah:
     surah_dialog(st.session_state.grade_surah)
 
 # --- SECTIONS (no tabs) ---
-tab_dash      = st.container()
-tab_idag      = st.container()
-tab_progress  = st.container()
+tab_dash     = st.container()
+tab_progress = st.container()
 
 # ===================== DASHBOARD =====================
 with tab_dash:
@@ -600,63 +599,6 @@ with tab_dash:
 """, unsafe_allow_html=True)
 
 
-# ===================== SESSION =====================
-with tab_idag:
-    queue    = sorted([d for d in data if d["nasta_repetition"] <= today_str], key=lambda x: compute_retention(x, today))
-    kommande = sorted([d for d in data if d["nasta_repetition"] > today_str],  key=lambda x: compute_retention(x, today))
-
-    st.markdown("""
-<style>
-[data-testid="stSegmentedControl"] button {
-    font-size: 0.15em !important;
-    padding: 2px 6px !important;
-    min-height: 0 !important;
-}
-[data-testid="stSegmentedControl"] {
-    gap: 3px !important;
-    flex-wrap: nowrap !important;
-}
-[data-testid="stSegmentedControl"] button {
-    white-space: nowrap !important;
-    flex-shrink: 1 !important;
-}
-</style>
-""", unsafe_allow_html=True)
-
-    def _session_card(item, key_prefix):
-        s_val    = get_stability(item)
-        r_val    = compute_retention(item, today)
-        r_pct    = int(r_val * 100)
-        chip_bg  = s_to_css(s_val)
-        chip_lbl = f"{round(s_val)}d"
-        with st.container(border=True):
-            st.markdown(
-                f"<div style='display:flex;justify-content:space-between;align-items:center;'>"
-                f"<b style='font-size:0.9em;'>{item['namn']}</b>"
-                f"<span style='display:flex;gap:5px;align-items:center;'>"
-                f"<span style='font-size:0.68em;opacity:0.6;'>{r_pct}%</span>"
-                f"<span style='font-size:0.68em;background:{chip_bg};color:white;"
-                f"padding:1px 6px;border-radius:10px;font-weight:600;'>{chip_lbl}</span>"
-                f"</span></div>",
-                unsafe_allow_html=True,
-            )
-            key = f"{key_prefix}{item['id']}"
-            st.segmented_control(
-                "", GRADE_OPTIONS, key=key,
-                label_visibility="collapsed",
-                on_change=graded_action_callback, args=(item["id"], key),
-            )
-
-    if queue:
-        for item in queue:
-            _session_card(item, "act_dag_")
-    else:
-        st.success("Inga repetitioner kvar idag!")
-
-    if kommande:
-        for item in kommande:
-            _session_card(item, "act_kom_")
-
 
 # ===================== PROGRESS =====================
 with tab_progress:
@@ -777,17 +719,18 @@ with tab_progress:
 
             tooltip = f"{num}. {name} — S={s_val:.1f}, retention {r_pct}%"
             grid_html += (
-                f"<div title='{tooltip}' onclick=\"{_onclick(num)}\""
+                f"<button title='{tooltip}' onclick=\"{_onclick(num)}\""
                 f" style='background:{bg};color:{text_c};opacity:{cell_op};"
                 f"aspect-ratio:1;border-radius:5px;display:flex;flex-direction:column;"
                 f"align-items:center;justify-content:center;padding:2px;"
-                f"border:1px solid var(--border-color);overflow:hidden;cursor:pointer;'>"
+                f"border:1px solid var(--border-color);overflow:hidden;cursor:pointer;"
+                f"width:100%;-webkit-appearance:none;appearance:none;'>"
                 f"<div style='font-size:0.88em;font-weight:800;line-height:1;'>{num}</div>"
                 f"<div style='font-size:0.43em;text-align:center;line-height:1.1;margin-top:2px;"
                 f"display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;"
                 f"overflow:hidden;width:100%;'>{name}</div>"
                 f"<div style='font-size:0.55em;margin-top:2px;opacity:0.85;'>{r_label}</div>"
-                f"</div>"
+                f"</button>"
             )
         grid_html += "</div></div>"
 
