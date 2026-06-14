@@ -3,40 +3,7 @@ import requests
 import datetime
 import math
 import uuid
-import base64
-
 st.set_page_config(page_title="Hifz", page_icon="📖", layout="centered")
-
-# Component HTML embedded as a data: URL — no directory, no CDN, no file system writes.
-_COMP_HTML = (
-    "<!DOCTYPE html><html><head><meta charset='UTF-8'>"
-    "<meta name='viewport' content='width=device-width,initial-scale=1'>"
-    "<style>*{box-sizing:border-box}body{margin:0;padding:0}"
-    "[data-surah]{cursor:pointer}[data-surah]:hover{filter:brightness(1.08)}"
-    "[data-surah]:active{filter:brightness(0.92)}</style></head>"
-    "<body><div id='root'></div><script>"
-    "(function(){"
-    "var root=document.getElementById('root');"
-    "function sfh(h){window.parent.postMessage({type:'streamlit:setFrameHeight',height:h},'*');}"
-    "function scv(v){window.parent.postMessage({type:'streamlit:setComponentValue',value:v,dataType:'json'},'*');}"
-    "window.addEventListener('message',function(e){"
-    "if(e.data&&e.data.type==='streamlit:render'){"
-    "root.innerHTML=e.data.args.html;"
-    "root.querySelectorAll('[data-surah]').forEach(function(el){"
-    "el.addEventListener('click',function(){"
-    "scv(parseInt(this.getAttribute('data-surah'),10));});"
-    "});"
-    "sfh(document.documentElement.scrollHeight);"
-    "}"
-    "});"
-    "window.parent.postMessage({type:'streamlit:componentReady',apiVersion:1},'*');"
-    "})();"
-    "</script></body></html>"
-)
-_surah_grid_comp = st.components.v1.declare_component(
-    "surah_grid",
-    url="data:text/html;charset=utf-8;base64," + base64.b64encode(_COMP_HTML.encode()).decode(),
-)
 
 try:
     BIN_ID = st.secrets["JSONBIN_BIN_ID"]
@@ -665,93 +632,62 @@ with tab_progress:
         unsafe_allow_html=True,
     )
 
-    juz_surah_ordered: dict = {}
-    for idx, juz in enumerate(SURAH_TO_JUZ):
-        juz_surah_ordered.setdefault(juz, []).append((idx + 1, raw_surah_names[idx]))
-
-    grid_html = ""
-    for juz_num in range(1, 31):
-        surahs_here = juz_surah_ordered.get(juz_num, [])
-        if not surahs_here:
-            continue
-
-        total_w_bar = JUZ_TOTAL_WORDS.get(juz_num, 0)
-        mast_w_bar  = sum(
-            JUZ_SURAH_WORDS[juz_num].get(s, 0)
-            for s in JUZ_SURAH_WORDS.get(juz_num, {})
-            if surah_stability.get(s, 0) >= MASTERED_S
+    # --- CSS: style the 9-column button grid as coloured tiles ---
+    css = ["<style>"]
+    # Base tile style scoped to any 9-column horizontal block on this page
+    css.append(
+        "[data-testid='stHorizontalBlock']:has([data-testid='column']:nth-child(9)) button{"
+        "aspect-ratio:1!important;padding:2px 1px!important;font-size:0.68em!important;"
+        "font-weight:800!important;min-width:0!important;width:100%!important;"
+        "height:auto!important;line-height:1.2!important;border-radius:5px!important;"
+        "white-space:normal!important;}"
+    )
+    for num in range(1, 115):
+        col_i  = (num - 1) % 9 + 1
+        row_i  = (num - 1) // 9 + 1
+        s_val  = surah_stability.get(num, 0.0)
+        r_val  = surah_retention.get(num, 0.0)
+        if num in surah_stability:
+            bg     = s_to_css(s_val, max(0.25, r_val))
+            fg     = "white"
+            op_t   = max(0.0, min(1.0, (r_val - 0.60) / 0.40))
+            op     = f"{0.35 + op_t * 0.65:.2f}"
+        else:
+            bg     = "rgba(128,128,128,0.12)"
+            fg     = "inherit"
+            op     = "0.38"
+        css.append(
+            f"[data-testid='stHorizontalBlock']:has([data-testid='column']:nth-child(9)) "
+            f"[data-testid='column']:nth-child({col_i}) "
+            f"[data-testid='element-container']:nth-child({row_i}) button{{"
+            f"background:{bg}!important;color:{fg}!important;"
+            f"opacity:{op}!important;border-color:{bg}!important;}}"
         )
-        prog_w_bar  = sum(
-            JUZ_SURAH_WORDS[juz_num].get(s, 0)
-            for s in JUZ_SURAH_WORDS.get(juz_num, {})
-            if s in surah_stability and surah_stability.get(s, 0) < MASTERED_S
-        )
-        mast_pct = round(mast_w_bar / total_w_bar * 100, 1) if total_w_bar else 0
-        prog_pct = round(prog_w_bar / total_w_bar * 100, 1) if total_w_bar else 0
-        segments = ""
-        if mast_pct > 0:
-            segments += f"<div style='width:{mast_pct}%;background:#1a7a4a;height:100%;'></div>"
-        if prog_pct > 0:
-            segments += f"<div style='width:{prog_pct}%;background:rgba(26,122,74,0.35);height:100%;'></div>"
+    css.append("</style>")
+    st.markdown("".join(css), unsafe_allow_html=True)
 
-        grid_html += (
-            f"<div style='margin-bottom:11px;'>"
-            f"<div style='display:flex;align-items:center;gap:7px;margin-bottom:4px;'>"
-            f"<span style='font-size:0.65em;font-weight:700;opacity:0.45;white-space:nowrap;'>Juz {juz_num}</span>"
-            f"<div style='flex:1;height:4px;background:rgba(128,128,128,0.15);border-radius:2px;"
-            f"display:flex;overflow:hidden;'>{segments}</div>"
-            f"<span style='font-size:0.58em;opacity:0.4;'>{mast_w_bar}/{total_w_bar}ord</span>"
-            f"</div>"
-            f"<div style='display:grid;grid-template-columns:repeat(auto-fill,minmax(50px,1fr));gap:4px;'>"
-        )
-        for (num, name) in surahs_here:
-            s_val   = surah_stability.get(num, 0.0)
-            r_val   = surah_retention.get(num, 0.0)
-            r_pct   = int(r_val * 100)
-            started = num in surah_stability
-
-            if started:
-                bg         = s_to_css(s_val, max(0.25, r_val))
-                text_c     = "white"
-                OP_MIN, OP_MAX = 0.35, 1.0
-                op_t       = max(0.0, min(1.0, (r_val - 0.60) / 0.40))
-                cell_op    = f"{OP_MIN + op_t * (OP_MAX - OP_MIN):.2f}"
-                r_label    = f"{r_pct}%"
-            else:
-                bg         = "rgba(128,128,128,0.10)"
-                text_c     = "var(--text-color)"
-                cell_op    = "0.38"
-                r_label    = ""
-
-            tooltip = f"{num}. {name} — S={s_val:.1f}, retention {r_pct}%"
-            grid_html += (
-                f"<div data-surah='{num}' title='{tooltip}'"
-                f" style='background:{bg};color:{text_c};opacity:{cell_op};"
-                f"aspect-ratio:1;border-radius:5px;display:flex;flex-direction:column;"
-                f"align-items:center;justify-content:center;padding:2px;"
-                f"border:1px solid var(--border-color);overflow:hidden;'>"
-                f"<div style='font-size:0.88em;font-weight:800;line-height:1;'>{num}</div>"
-                f"<div style='font-size:0.43em;text-align:center;line-height:1.1;margin-top:2px;"
-                f"display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;"
-                f"overflow:hidden;width:100%;'>{name}</div>"
-                f"<div style='font-size:0.55em;margin-top:2px;opacity:0.85;'>{r_label}</div>"
-                f"</div>"
-            )
-        grid_html += "</div></div>"
-
-    # Gradient legend replacing old S1–S5 step legend
-    grid_html += (
-        "<div style='display:flex;align-items:center;gap:8px;font-size:0.58em;margin-top:6px;opacity:0.55;'>"
+    # Gradient legend
+    st.markdown(
+        "<div style='display:flex;align-items:center;gap:8px;font-size:0.58em;"
+        "margin-bottom:6px;opacity:0.55;'>"
         "<span style='white-space:nowrap;'>S=1</span>"
         "<div style='flex:1;height:6px;border-radius:3px;background:linear-gradient(to right,"
         "rgba(192,57,43,1) 0%,rgba(211,84,0,1) 25%,rgba(183,149,11,1) 50%,"
         "rgba(26,111,168,1) 75%,rgba(26,122,74,1) 100%);'></div>"
         "<span style='white-space:nowrap;'>S=500+</span>"
         "<span style='opacity:0.6;margin-left:6px;'>· opacity = retention</span>"
-        "</div>"
+        "</div>",
+        unsafe_allow_html=True,
     )
-    clicked = _surah_grid_comp(html=grid_html, key="sg")
-    if clicked and not st.session_state.get("grade_surah"):
-        st.session_state.grade_surah = clicked
-        st.rerun()
+
+    # 9-column grid of native Streamlit buttons — works on all deployments
+    gcols = st.columns(9, gap="small")
+    for num in range(1, 115):
+        r_val  = surah_retention.get(num, 0.0) if num in surah_stability else None
+        r_str  = f"\n{int(r_val * 100)}%" if r_val is not None else ""
+        label  = f"{num}{r_str}"
+        with gcols[(num - 1) % 9]:
+            if st.button(label, key=f"sb_{num}", use_container_width=True):
+                st.session_state.grade_surah = num
+                st.rerun()
 
