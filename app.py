@@ -3,8 +3,13 @@ import requests
 import datetime
 import math
 import uuid
+import os
 
 st.set_page_config(page_title="Hifz", page_icon="📖", layout="centered")
+
+# Declare the surah-grid custom component (bidirectional: click → Python rerun, no page reload)
+_COMP_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "surah_grid_component")
+_surah_grid_comp = st.components.v1.declare_component("surah_grid", path=_COMP_DIR)
 
 try:
     BIN_ID = st.secrets["JSONBIN_BIN_ID"]
@@ -324,7 +329,7 @@ def surah_dialog(num: int):
     with col_cancel:
         if st.button("Stang", key=f"dca_{num}", use_container_width=True):
             del st.session_state["grade_surah"]
-            st.query_params.clear()
+            st.session_state.pop("sg", None)
             st.rerun()
 
     def _apply(new_stability: float):
@@ -352,7 +357,7 @@ def surah_dialog(num: int):
             entry["nasta_repetition"] = nxt
         save_to_db(st.session_state.db_data)
         del st.session_state["grade_surah"]
-        st.query_params.clear()
+        st.session_state.pop("sg", None)
         st.rerun()
 
     if grade_hit is not None:
@@ -434,13 +439,8 @@ for r in surah_retention.values():
     ret_buckets[min(9, int(r * 10))] += 1
 
 # --- DIALOG TRIGGER ---
-# Read surah number from query param set by the tile <a href> links
 if "grade_surah" not in st.session_state:
-    _gs = st.query_params.get("gs", "")
-    try:
-        st.session_state.grade_surah = int(_gs) if _gs else None
-    except ValueError:
-        st.session_state.grade_surah = None
+    st.session_state.grade_surah = None
 
 if st.session_state.grade_surah:
     surah_dialog(st.session_state.grade_surah)
@@ -585,7 +585,6 @@ with tab_dash:
 
 # ===================== PROGRESS =====================
 with tab_progress:
-    st.markdown("<div id='surahgrid'></div>", unsafe_allow_html=True)
     st.markdown(
         "<div style='font-size:0.68em;opacity:0.5;text-transform:uppercase;"
         "letter-spacing:0.04em;margin-bottom:7px;'>Juz (1–30)</div>",
@@ -699,18 +698,17 @@ with tab_progress:
 
             tooltip = f"{num}. {name} — S={s_val:.1f}, retention {r_pct}%"
             grid_html += (
-                f"<a href='?gs={num}#surahgrid' title='{tooltip}'"
+                f"<div data-surah='{num}' title='{tooltip}'"
                 f" style='background:{bg};color:{text_c};opacity:{cell_op};"
                 f"aspect-ratio:1;border-radius:5px;display:flex;flex-direction:column;"
                 f"align-items:center;justify-content:center;padding:2px;"
-                f"border:1px solid var(--border-color);overflow:hidden;"
-                f"text-decoration:none;cursor:pointer;'>"
+                f"border:1px solid var(--border-color);overflow:hidden;'>"
                 f"<div style='font-size:0.88em;font-weight:800;line-height:1;'>{num}</div>"
                 f"<div style='font-size:0.43em;text-align:center;line-height:1.1;margin-top:2px;"
                 f"display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;"
                 f"overflow:hidden;width:100%;'>{name}</div>"
                 f"<div style='font-size:0.55em;margin-top:2px;opacity:0.85;'>{r_label}</div>"
-                f"</a>"
+                f"</div>"
             )
         grid_html += "</div></div>"
 
@@ -725,24 +723,8 @@ with tab_progress:
         "<span style='opacity:0.6;margin-left:6px;'>· opacity = retention</span>"
         "</div>"
     )
-    st.markdown(grid_html, unsafe_allow_html=True)
-
-    # Save/restore scroll position across page reloads triggered by tile <a href> links.
-    # window.parent flag ensures restore runs only once per page load, not on every rerun.
-    st.components.v1.html("""<script>
-(function(){
-    try {
-        var p = window.parent;
-        if (p._hifzScrollReady) return;
-        p._hifzScrollReady = true;
-        p.addEventListener('scroll', function(){
-            sessionStorage.setItem('hifzY', Math.round(p.scrollY));
-        }, {passive: true});
-        var y = parseInt(sessionStorage.getItem('hifzY') || '0');
-        if (y > 50) {
-            setTimeout(function(){ p.scrollTo(0, y); }, 500);
-        }
-    } catch(e) {}
-})();
-</script>""", height=1)
+    clicked = _surah_grid_comp(html=grid_html, key="sg")
+    if clicked and not st.session_state.get("grade_surah"):
+        st.session_state.grade_surah = clicked
+        st.rerun()
 
