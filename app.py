@@ -727,3 +727,22 @@ with tab_progress:
     )
     st.markdown(grid_html, unsafe_allow_html=True)
 
+    # Save/restore scroll position across page reloads triggered by tile <a href> links.
+    # window.parent flag ensures restore runs only once per page load, not on every rerun.
+    st.components.v1.html("""<script>
+(function(){
+    try {
+        var p = window.parent;
+        if (p._hifzScrollReady) return;
+        p._hifzScrollReady = true;
+        p.addEventListener('scroll', function(){
+            sessionStorage.setItem('hifzY', Math.round(p.scrollY));
+        }, {passive: true});
+        var y = parseInt(sessionStorage.getItem('hifzY') || '0');
+        if (y > 50) {
+            setTimeout(function(){ p.scrollTo(0, y); }, 500);
+        }
+    } catch(e) {}
+})();
+</script>""", height=1)
+
