@@ -678,7 +678,7 @@ with tab_progress:
             f"display:flex;overflow:hidden;'>{segments}</div>"
             f"<span style='font-size:0.58em;opacity:0.4;'>{mast_w_bar}/{total_w_bar}ord</span>"
             f"</div>"
-            f"<div style='display:grid;grid-template-columns:repeat(auto-fill,minmax(62px,1fr));gap:5px;'>"
+            f"<div style='display:grid;grid-template-columns:repeat(auto-fill,minmax(50px,1fr));gap:4px;'>"
         )
         for (num, name) in surahs_here:
             s_val   = surah_stability.get(num, 0.0)
@@ -709,7 +709,7 @@ with tab_progress:
                 f"<div style='font-size:0.43em;text-align:center;line-height:1.1;margin-top:2px;"
                 f"display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;"
                 f"overflow:hidden;width:100%;'>{name}</div>"
-                f"<div style='font-size:0.45em;margin-top:2px;opacity:0.85;'>{r_label}</div>"
+                f"<div style='font-size:0.55em;margin-top:2px;opacity:0.85;'>{r_label}</div>"
                 f"</div>"
             )
         grid_html += "</div></div>"
