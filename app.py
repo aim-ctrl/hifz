@@ -4,11 +4,51 @@ import datetime
 import math
 import uuid
 import os
+import tempfile
 
 st.set_page_config(page_title="Hifz", page_icon="📖", layout="centered")
 
-# Declare the surah-grid custom component (bidirectional: click → Python rerun, no page reload)
-_COMP_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "surah_grid_component")
+# Build the component directory at runtime so no separate folder needs to be deployed.
+_COMP_HTML = """<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="https://unpkg.com/streamlit-component-lib/dist/index.js"></script>
+<style>
+* { box-sizing: border-box; }
+body { margin: 0; padding: 0; }
+[data-surah] { cursor: pointer; }
+[data-surah]:hover { filter: brightness(1.08); }
+[data-surah]:active { filter: brightness(0.92); }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script>
+(function () {
+    var root = document.getElementById('root');
+    Streamlit.onRender(function (event) {
+        root.innerHTML = event.detail.args.html;
+        root.querySelectorAll('[data-surah]').forEach(function (el) {
+            el.addEventListener('click', function (e) {
+                e.preventDefault();
+                Streamlit.setComponentValue(parseInt(this.getAttribute('data-surah'), 10));
+            });
+        });
+        Streamlit.setFrameHeight(document.documentElement.scrollHeight);
+    });
+})();
+</script>
+</body>
+</html>
+"""
+_COMP_DIR = os.path.join(tempfile.gettempdir(), "hifz_surah_grid_comp")
+os.makedirs(_COMP_DIR, exist_ok=True)
+_index_path = os.path.join(_COMP_DIR, "index.html")
+if not os.path.exists(_index_path):
+    with open(_index_path, "w", encoding="utf-8") as _f:
+        _f.write(_COMP_HTML)
 _surah_grid_comp = st.components.v1.declare_component("surah_grid", path=_COMP_DIR)
 
 try:
