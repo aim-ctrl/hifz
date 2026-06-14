@@ -659,26 +659,10 @@ with tab_progress:
         unsafe_allow_html=True,
     )
 
-    # CSS: keep the 9-column grid horizontal on mobile (scroll instead of stack)
-    st.markdown("""<style>
-[data-testid="stHorizontalBlock"]:has([data-testid="column"]:nth-child(9)) {
-    flex-wrap: nowrap !important;
-    overflow-x: auto !important;
-    gap: 3px !important;
-    padding-bottom: 4px !important;
-    -webkit-overflow-scrolling: touch !important;
-}
-[data-testid="stHorizontalBlock"]:has([data-testid="column"]:nth-child(9)) > div {
-    min-width: 44px !important;
-    flex: 1 0 44px !important;
-    padding: 0 !important;
-}
-</style>""", unsafe_allow_html=True)
-
-    # 9-column grid — label = number + name + retention (JS extracts leading digits)
+    # 9-column grid — full surah name + retention in label
     gcols = st.columns(9)
     for _n in range(1, 115):
-        _name = raw_surah_names[_n - 1][:7]
+        _name = raw_surah_names[_n - 1]
         _r = surah_retention.get(_n, 0.0) if _n in surah_stability else None
         _rlbl = f"\n{int(_r * 100)}%" if _r is not None else ""
         _label = f"{_n}\n{_name}{_rlbl}"
@@ -713,7 +697,7 @@ function paint(){{
             s.setProperty('color',c[1],'important');
             s.setProperty('opacity',c[2],'important');
             s.setProperty('border-color',c[0],'important');
-            s.setProperty('height','58px','important');
+            s.setProperty('height','44px','important');
             s.setProperty('padding','2px','important');
             s.setProperty('font-size','0.62em','important');
             s.setProperty('font-weight','800','important');
