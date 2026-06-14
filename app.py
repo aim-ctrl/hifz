@@ -666,17 +666,25 @@ with tab_progress:
         if st.button(str(_n), key=f"sb_{_n}", use_container_width=True):
             st.session_state.grade_surah = _n
             st.rerun()
-    # CSS: tighten spacing between surah buttons
+    # CSS: tighten spacing and fix button inner layout
     st.markdown("""<style>
-button[data-testid="stBaseButton-secondary"][kind="secondary"] {
-    margin-bottom: 0 !important;
-}
-button[data-testid="stBaseButton-secondary"] + div,
 [data-testid="element-container"]:has(button[data-testid="stBaseButton-secondary"]) {
     padding-top: 0 !important;
     padding-bottom: 0 !important;
     margin-top: 0 !important;
     margin-bottom: 0 !important;
+}
+button[data-testid="stBaseButton-secondary"] > div,
+button[data-testid="stBaseButton-secondary"] > span {
+    width: 100% !important;
+    flex: 1 1 auto !important;
+    display: flex !important;
+    justify-content: stretch !important;
+}
+button[data-testid="stBaseButton-secondary"] p {
+    width: 100% !important;
+    display: block !important;
+    text-align: left !important;
 }
 </style>""", unsafe_allow_html=True)
 
@@ -708,9 +716,6 @@ function paint(){{
             s.setProperty('width','100%','important');
             s.setProperty('min-width','0','important');
             s.setProperty('overflow','hidden','important');
-            p.style.setProperty('width','100%','important');
-            p.style.setProperty('display','block','important');
-            p.style.setProperty('text-align','left','important');
             if(!numEl){{
                 var ret=c[4]?c[4]+'%':'';
                 p.innerHTML=
