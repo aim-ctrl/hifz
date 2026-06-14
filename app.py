@@ -707,10 +707,10 @@ function paint(){{
             s.setProperty('color',c[1],'important');
             s.setProperty('opacity',c[2],'important');
             s.setProperty('border-color',c[0],'important');
-            s.setProperty('height','32px','important');
-            s.setProperty('padding','1px 4px','important');
-            s.setProperty('font-size','0.62em','important');
-            s.setProperty('border-radius','5px','important');
+            s.setProperty('height','26px','important');
+            s.setProperty('padding','0 6px','important');
+            s.setProperty('font-size','0.72em','important');
+            s.setProperty('border-radius','4px','important');
             s.setProperty('width','100%','important');
             s.setProperty('min-width','0','important');
             s.setProperty('overflow','hidden','important');
@@ -723,8 +723,12 @@ function paint(){{
                   +"<span style='flex:0 0 auto!important;width:auto!important;text-align:right;font-weight:600;min-width:2.5em;'>"+ret+"</span>";
             }}
             var ec=b.closest('[data-testid="element-container"]');
-            if(ec){{ec.style.setProperty('padding','0','important');
-                    ec.style.setProperty('margin','0','important');}}
+            if(ec){{
+                ec.style.setProperty('padding','0','important');
+                ec.style.setProperty('margin','0','important');
+                var vb=ec.parentElement;
+                if(vb)vb.style.setProperty('gap','2px','important');
+            }}
         }});
     }}finally{{busy=false;}}
 }}
