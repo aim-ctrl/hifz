@@ -659,17 +659,21 @@ with tab_progress:
         unsafe_allow_html=True,
     )
 
-    # 9-column grid — full surah name + retention in label
-    gcols = st.columns(9)
-    for _n in range(1, 115):
-        _name = raw_surah_names[_n - 1]
-        _r = surah_retention.get(_n, 0.0) if _n in surah_stability else None
-        _rlbl = f"\n{int(_r * 100)}%" if _r is not None else ""
-        _label = f"{_n}\n{_name}{_rlbl}"
-        with gcols[(_n - 1) % 9]:
-            if st.button(_label, key=f"sb_{_n}", use_container_width=True):
-                st.session_state.grade_surah = _n
-                st.rerun()
+    # One st.columns(9) per row so that mobile stacking stays sequential (1,2,3…114)
+    for _row in range(math.ceil(114 / 9)):
+        _gcols = st.columns(9)
+        for _col in range(9):
+            _n = _row * 9 + _col + 1
+            if _n > 114:
+                break
+            _name = raw_surah_names[_n - 1]
+            _r = surah_retention.get(_n, 0.0) if _n in surah_stability else None
+            _rlbl = f"\n{int(_r * 100)}%" if _r is not None else ""
+            with _gcols[_col]:
+                if st.button(f"{_n}\n{_name}{_rlbl}", key=f"sb_{_n}",
+                             use_container_width=True):
+                    st.session_state.grade_surah = _n
+                    st.rerun()
 
     # JavaScript: colour + size the buttons. Extracts the leading number from the label
     # so multi-line labels ("37\nAl-Ahzab\n97%") still match correctly.
