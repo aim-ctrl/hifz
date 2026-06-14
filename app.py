@@ -585,6 +585,7 @@ with tab_dash:
 
 # ===================== PROGRESS =====================
 with tab_progress:
+    st.markdown("<div id='surahgrid'></div>", unsafe_allow_html=True)
     st.markdown(
         "<div style='font-size:0.68em;opacity:0.5;text-transform:uppercase;"
         "letter-spacing:0.04em;margin-bottom:7px;'>Juz (1–30)</div>",
@@ -698,7 +699,7 @@ with tab_progress:
 
             tooltip = f"{num}. {name} — S={s_val:.1f}, retention {r_pct}%"
             grid_html += (
-                f"<a href='?gs={num}' title='{tooltip}'"
+                f"<a href='?gs={num}#surahgrid' title='{tooltip}'"
                 f" style='background:{bg};color:{text_c};opacity:{cell_op};"
                 f"aspect-ratio:1;border-radius:5px;display:flex;flex-direction:column;"
                 f"align-items:center;justify-content:center;padding:2px;"
