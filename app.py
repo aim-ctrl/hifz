@@ -676,7 +676,7 @@ with tab_progress:
     st.markdown("""<style>
 [data-testid="stHorizontalBlock"]:has([data-testid="column"]:nth-child(9)) {
     gap: 3px !important;
-    margin-bottom: -20px !important;
+    margin-bottom: -26px !important;
 }
 [data-testid="stHorizontalBlock"]:has([data-testid="column"]:nth-child(9))
 [data-testid="stVerticalBlockBorderWrapper"],
