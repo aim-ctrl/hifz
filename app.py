@@ -661,38 +661,22 @@ with tab_progress:
     )
     _js_data += "}"
 
-    # One st.columns(9) per row — label is just the number; JS fills in name + retention
-    for _row in range(math.ceil(114 / 9)):
-        _gcols = st.columns(9)
-        for _col in range(9):
-            _n = _row * 9 + _col + 1
-            if _n > 114:
-                break
-            with _gcols[_col]:
-                if st.button(str(_n), key=f"sb_{_n}", use_container_width=True):
-                    st.session_state.grade_surah = _n
-                    st.rerun()
-    # CSS: tighten gaps between button rows and within each row
+    # Single-column layout — one full-width button per surah; JS fills in name + retention
+    for _n in range(1, 115):
+        if st.button(str(_n), key=f"sb_{_n}", use_container_width=True):
+            st.session_state.grade_surah = _n
+            st.rerun()
+    # CSS: tighten spacing between surah buttons
     st.markdown("""<style>
-[data-testid="stHorizontalBlock"]:has([data-testid="column"]:nth-child(9)) {
-    gap: 3px !important;
-    margin-top: 0 !important;
+button[data-testid="stBaseButton-secondary"][kind="secondary"] {
     margin-bottom: 0 !important;
 }
-[data-testid="stVerticalBlock"]:has(>[data-testid="stHorizontalBlock"]:has([data-testid="column"]:nth-child(9))) {
-    gap: 3px !important;
-}
-[data-testid="stHorizontalBlock"]:has([data-testid="column"]:nth-child(9))
-[data-testid="stVerticalBlockBorderWrapper"],
-[data-testid="stHorizontalBlock"]:has([data-testid="column"]:nth-child(9))
-[data-testid="stVerticalBlock"] {
-    gap: 0 !important;
-    padding: 0 !important;
-}
-[data-testid="stHorizontalBlock"]:has([data-testid="column"]:nth-child(9))
-[data-testid="element-container"] {
-    padding: 0 !important;
-    margin: 0 !important;
+button[data-testid="stBaseButton-secondary"] + div,
+[data-testid="element-container"]:has(button[data-testid="stBaseButton-secondary"]) {
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
+    margin-top: 0 !important;
+    margin-bottom: 0 !important;
 }
 </style>""", unsafe_allow_html=True)
 
