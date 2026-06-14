@@ -8,13 +8,12 @@ import tempfile
 
 st.set_page_config(page_title="Hifz", page_icon="📖", layout="centered")
 
-# Build the component directory at runtime so no separate folder needs to be deployed.
+# Build the component directory at runtime — no CDN, protocol implemented inline via postMessage.
 _COMP_HTML = """<!DOCTYPE html>
 <html>
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<script src="https://unpkg.com/streamlit-component-lib/dist/index.js"></script>
 <style>
 * { box-sizing: border-box; }
 body { margin: 0; padding: 0; }
@@ -27,17 +26,25 @@ body { margin: 0; padding: 0; }
 <div id="root"></div>
 <script>
 (function () {
-    var root = document.getElementById('root');
-    Streamlit.onRender(function (event) {
-        root.innerHTML = event.detail.args.html;
-        root.querySelectorAll('[data-surah]').forEach(function (el) {
-            el.addEventListener('click', function (e) {
-                e.preventDefault();
-                Streamlit.setComponentValue(parseInt(this.getAttribute('data-surah'), 10));
+    var root = document.getElementById("root");
+    function setFrameHeight(h) {
+        window.parent.postMessage({ type: "streamlit:setFrameHeight", height: h }, "*");
+    }
+    function setComponentValue(v) {
+        window.parent.postMessage({ type: "streamlit:setComponentValue", value: v, dataType: "json" }, "*");
+    }
+    window.addEventListener("message", function (event) {
+        if (event.data.type === "streamlit:render") {
+            root.innerHTML = event.data.args.html;
+            root.querySelectorAll("[data-surah]").forEach(function (el) {
+                el.addEventListener("click", function () {
+                    setComponentValue(parseInt(this.getAttribute("data-surah"), 10));
+                });
             });
-        });
-        Streamlit.setFrameHeight(document.documentElement.scrollHeight);
+            setFrameHeight(document.documentElement.scrollHeight);
+        }
     });
+    window.parent.postMessage({ type: "streamlit:componentReady", apiVersion: 1 }, "*");
 })();
 </script>
 </body>
@@ -45,10 +52,8 @@ body { margin: 0; padding: 0; }
 """
 _COMP_DIR = os.path.join(tempfile.gettempdir(), "hifz_surah_grid_comp")
 os.makedirs(_COMP_DIR, exist_ok=True)
-_index_path = os.path.join(_COMP_DIR, "index.html")
-if not os.path.exists(_index_path):
-    with open(_index_path, "w", encoding="utf-8") as _f:
-        _f.write(_COMP_HTML)
+with open(os.path.join(_COMP_DIR, "index.html"), "w", encoding="utf-8") as _f:
+    _f.write(_COMP_HTML)
 _surah_grid_comp = st.components.v1.declare_component("surah_grid", path=_COMP_DIR)
 
 try:
