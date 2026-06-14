@@ -674,17 +674,15 @@ with tab_progress:
     margin-top: 0 !important;
     margin-bottom: 0 !important;
 }
-button[data-testid="stBaseButton-secondary"] > div,
-button[data-testid="stBaseButton-secondary"] > span {
-    width: 100% !important;
+button[data-testid="stBaseButton-secondary"] * {
     flex: 1 1 auto !important;
-    display: flex !important;
-    justify-content: stretch !important;
+    min-width: 0 !important;
+    width: 100% !important;
 }
 button[data-testid="stBaseButton-secondary"] p {
-    width: 100% !important;
-    display: block !important;
-    text-align: left !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 4px !important;
 }
 </style>""", unsafe_allow_html=True)
 
@@ -719,12 +717,10 @@ function paint(){{
             if(!numEl){{
                 var ret=c[4]?c[4]+'%':'';
                 p.innerHTML=
-                  "<span style='display:flex;align-items:center;width:100%;gap:4px;'>"
-                  +"<b class='hifz-n' style='flex:0 0 auto;font-weight:800;min-width:1.8em;'>"+(n)+"</b>"
-                  +"<span style='flex:1;text-align:center;overflow:hidden;text-overflow:ellipsis;"
-                  +"white-space:nowrap;font-weight:400;'>"+c[3]+"</span>"
-                  +"<span style='flex:0 0 auto;text-align:right;font-weight:600;min-width:2.5em;'>"+ret+"</span>"
-                  +"</span>";
+                  "<b class='hifz-n' style='flex:0 0 auto!important;width:auto!important;font-weight:800;min-width:2em;'>"+(n)+"</b>"
+                  +"<span style='flex:1 1 auto!important;text-align:center;overflow:hidden;text-overflow:ellipsis;"
+                  +"white-space:nowrap;font-weight:400;min-width:0;'>"+c[3]+"</span>"
+                  +"<span style='flex:0 0 auto!important;width:auto!important;text-align:right;font-weight:600;min-width:2.5em;'>"+ret+"</span>";
             }}
             var ec=b.closest('[data-testid="element-container"]');
             if(ec){{ec.style.setProperty('padding','0','important');
