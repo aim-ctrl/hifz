@@ -680,14 +680,27 @@ with tab_progress:
     _js_colors = "{" + ",".join(
         f"{n}:['{bg}','{fg}',{op}]" for n, (bg, fg, op) in _clr.items()
     ) + "}"
+    # CSS: tighten gaps between button rows and within each row
+    st.markdown("""<style>
+[data-testid="stHorizontalBlock"]:has([data-testid="column"]:nth-child(9)) {
+    gap: 3px !important;
+    margin-bottom: -6px !important;
+}
+[data-testid="stHorizontalBlock"]:has([data-testid="column"]:nth-child(9))
+[data-testid="element-container"] {
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
+    margin: 0 !important;
+}
+</style>""", unsafe_allow_html=True)
+
     st.components.v1.html(f"""<script>
 (function(){{
 var C={_js_colors};
 function paint(){{
     try{{
-        var btns=window.parent.document.querySelectorAll(
-            'button[data-testid="stBaseButton-secondary"]');
-        btns.forEach(function(b){{
+        var doc=window.parent.document;
+        doc.querySelectorAll('button[data-testid="stBaseButton-secondary"]').forEach(function(b){{
             if(b.closest('[role="dialog"]'))return;
             var p=b.querySelector('p');
             if(!p)return;
@@ -701,14 +714,18 @@ function paint(){{
             s.setProperty('color',c[1],'important');
             s.setProperty('opacity',c[2],'important');
             s.setProperty('border-color',c[0],'important');
-            s.setProperty('height','44px','important');
-            s.setProperty('padding','2px','important');
+            s.setProperty('height','32px','important');
+            s.setProperty('padding','1px 2px','important');
             s.setProperty('font-size','0.62em','important');
             s.setProperty('font-weight','800','important');
             s.setProperty('border-radius','5px','important');
             s.setProperty('width','100%','important');
             s.setProperty('min-width','0','important');
-            s.setProperty('line-height','1.15','important');
+            s.setProperty('line-height','1.1','important');
+            s.setProperty('overflow','hidden','important');
+            var ec=b.closest('[data-testid="element-container"]');
+            if(ec){{ec.style.setProperty('padding','0','important');
+                    ec.style.setProperty('margin','0','important');}}
         }});
     }}catch(e){{}}
 }}
