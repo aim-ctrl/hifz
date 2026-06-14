@@ -632,39 +632,18 @@ with tab_progress:
         unsafe_allow_html=True,
     )
 
-    # --- CSS: style the 9-column button grid as coloured tiles ---
-    css = ["<style>"]
-    # Base tile style scoped to any 9-column horizontal block on this page
-    css.append(
-        "[data-testid='stHorizontalBlock']:has([data-testid='column']:nth-child(9)) button{"
-        "aspect-ratio:1!important;padding:2px 1px!important;font-size:0.68em!important;"
-        "font-weight:800!important;min-width:0!important;width:100%!important;"
-        "height:auto!important;line-height:1.2!important;border-radius:5px!important;"
-        "white-space:normal!important;}"
-    )
-    for num in range(1, 115):
-        col_i  = (num - 1) % 9 + 1
-        row_i  = (num - 1) // 9 + 1
-        s_val  = surah_stability.get(num, 0.0)
-        r_val  = surah_retention.get(num, 0.0)
-        if num in surah_stability:
-            bg     = s_to_css(s_val, max(0.25, r_val))
-            fg     = "white"
-            op_t   = max(0.0, min(1.0, (r_val - 0.60) / 0.40))
-            op     = f"{0.35 + op_t * 0.65:.2f}"
+    # Build per-surah colour/opacity map for JavaScript injection
+    _clr = {}
+    for _n in range(1, 115):
+        _s = surah_stability.get(_n, 0.0)
+        _r = surah_retention.get(_n, 0.0)
+        if _n in surah_stability:
+            _bg = s_to_css(_s, max(0.25, _r))
+            _op = round(0.35 + max(0.0, min(1.0, (_r - 0.60) / 0.40)) * 0.65, 2)
+            _fg = "#fff"
         else:
-            bg     = "rgba(128,128,128,0.12)"
-            fg     = "inherit"
-            op     = "0.38"
-        css.append(
-            f"[data-testid='stHorizontalBlock']:has([data-testid='column']:nth-child(9)) "
-            f"[data-testid='column']:nth-child({col_i}) "
-            f"[data-testid='element-container']:nth-child({row_i}) button{{"
-            f"background:{bg}!important;color:{fg}!important;"
-            f"opacity:{op}!important;border-color:{bg}!important;}}"
-        )
-    css.append("</style>")
-    st.markdown("".join(css), unsafe_allow_html=True)
+            _bg, _op, _fg = "rgba(128,128,128,0.13)", 0.42, "currentColor"
+        _clr[_n] = (_bg, _fg, _op)
 
     # Gradient legend
     st.markdown(
@@ -680,14 +659,55 @@ with tab_progress:
         unsafe_allow_html=True,
     )
 
-    # 9-column grid of native Streamlit buttons — works on all deployments
-    gcols = st.columns(9, gap="small")
-    for num in range(1, 115):
-        r_val  = surah_retention.get(num, 0.0) if num in surah_stability else None
-        r_str  = f"\n{int(r_val * 100)}%" if r_val is not None else ""
-        label  = f"{num}{r_str}"
-        with gcols[(num - 1) % 9]:
-            if st.button(label, key=f"sb_{num}", use_container_width=True):
-                st.session_state.grade_surah = num
+    # 9-column grid — buttons labelled with number only (no retention text)
+    # so parseInt(p.textContent) is unambiguous in the JS below
+    gcols = st.columns(9)
+    for _n in range(1, 115):
+        with gcols[(_n - 1) % 9]:
+            if st.button(str(_n), key=f"sb_{_n}", use_container_width=True):
+                st.session_state.grade_surah = _n
                 st.rerun()
+
+    # JavaScript: style the buttons with correct colours.
+    # st.components.v1.html() is served same-origin, so window.parent.document is accessible.
+    _js_colors = "{" + ",".join(
+        f"{n}:['{bg}','{fg}',{op}]" for n, (bg, fg, op) in _clr.items()
+    ) + "}"
+    st.components.v1.html(f"""<script>
+(function(){{
+var C={_js_colors};
+function paint(){{
+    try{{
+        var btns=window.parent.document.querySelectorAll(
+            'button[data-testid="stBaseButton-secondary"]');
+        btns.forEach(function(b){{
+            if(b.closest('[role="dialog"]'))return;
+            var p=b.querySelector('p');
+            if(!p)return;
+            var n=parseInt(p.textContent.trim());
+            if(!n||n<1||n>114)return;
+            var c=C[n];if(!c)return;
+            var s=b.style;
+            s.setProperty('background',c[0],'important');
+            s.setProperty('color',c[1],'important');
+            s.setProperty('opacity',c[2],'important');
+            s.setProperty('border-color',c[0],'important');
+            s.setProperty('height','46px','important');
+            s.setProperty('padding','2px','important');
+            s.setProperty('font-size','0.78em','important');
+            s.setProperty('font-weight','800','important');
+            s.setProperty('border-radius','5px','important');
+            s.setProperty('width','100%','important');
+            s.setProperty('min-width','0','important');
+            s.setProperty('line-height','1.1','important');
+        }});
+    }}catch(e){{}}
+}}
+paint();
+setTimeout(paint,150);
+setTimeout(paint,600);
+new MutationObserver(paint).observe(
+    window.parent.document.body,{{childList:true,subtree:true,attributes:false}});
+}})();
+</script>""", height=1)
 
