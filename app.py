@@ -324,6 +324,7 @@ def surah_dialog(num: int):
     with col_cancel:
         if st.button("Stang", key=f"dca_{num}", use_container_width=True):
             del st.session_state["grade_surah"]
+            st.query_params.clear()
             st.rerun()
 
     def _apply(new_stability: float):
@@ -351,6 +352,7 @@ def surah_dialog(num: int):
             entry["nasta_repetition"] = nxt
         save_to_db(st.session_state.db_data)
         del st.session_state["grade_surah"]
+        st.query_params.clear()
         st.rerun()
 
     if grade_hit is not None:
@@ -377,14 +379,6 @@ footer { visibility: hidden; }
     max-width: 520px !important;
 }
 
-/* Hide the JS trigger input */
-[data-testid="stTextInput"]:has(input[placeholder="surahclicktrigger"]) {
-    position: absolute !important;
-    opacity: 0 !important;
-    pointer-events: none !important;
-    height: 0 !important;
-    overflow: hidden !important;
-}
 
 [data-testid="stVerticalBlockBorderWrapper"] > div { padding: 0.45rem 0.55rem !important; }
 </style>
@@ -440,16 +434,13 @@ for r in surah_retention.values():
     ret_buckets[min(9, int(r * 10))] += 1
 
 # --- DIALOG TRIGGER ---
+# Read surah number from query param set by the tile <a href> links
 if "grade_surah" not in st.session_state:
-    st.session_state.grade_surah = None
-
-_clicked = st.session_state.get("surah_click", "")
-if _clicked:
+    _gs = st.query_params.get("gs", "")
     try:
-        st.session_state.grade_surah = int(_clicked)
+        st.session_state.grade_surah = int(_gs) if _gs else None
     except ValueError:
-        pass
-    st.session_state.surah_click = ""
+        st.session_state.grade_surah = None
 
 if st.session_state.grade_surah:
     surah_dialog(st.session_state.grade_surah)
@@ -594,10 +585,6 @@ with tab_dash:
 
 # ===================== PROGRESS =====================
 with tab_progress:
-    # Hidden input — JS writes surah number here to open dialog
-    st.text_input("", placeholder="surahclicktrigger", key="surah_click",
-                  label_visibility="collapsed")
-
     st.markdown(
         "<div style='font-size:0.68em;opacity:0.5;text-transform:uppercase;"
         "letter-spacing:0.04em;margin-bottom:7px;'>Juz (1–30)</div>",
@@ -711,18 +698,18 @@ with tab_progress:
 
             tooltip = f"{num}. {name} — S={s_val:.1f}, retention {r_pct}%"
             grid_html += (
-                f"<button data-surah='{num}' title='{tooltip}'"
+                f"<a href='?gs={num}' title='{tooltip}'"
                 f" style='background:{bg};color:{text_c};opacity:{cell_op};"
                 f"aspect-ratio:1;border-radius:5px;display:flex;flex-direction:column;"
                 f"align-items:center;justify-content:center;padding:2px;"
-                f"border:1px solid var(--border-color);overflow:hidden;cursor:pointer;"
-                f"width:100%;-webkit-appearance:none;appearance:none;'>"
+                f"border:1px solid var(--border-color);overflow:hidden;"
+                f"text-decoration:none;cursor:pointer;'>"
                 f"<div style='font-size:0.88em;font-weight:800;line-height:1;'>{num}</div>"
                 f"<div style='font-size:0.43em;text-align:center;line-height:1.1;margin-top:2px;"
                 f"display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;"
                 f"overflow:hidden;width:100%;'>{name}</div>"
                 f"<div style='font-size:0.55em;margin-top:2px;opacity:0.85;'>{r_label}</div>"
-                f"</button>"
+                f"</a>"
             )
         grid_html += "</div></div>"
 
@@ -738,31 +725,4 @@ with tab_progress:
         "</div>"
     )
     st.markdown(grid_html, unsafe_allow_html=True)
-
-    # Inject click listeners from an iframe (scripts run here; window.parent.document is same-origin)
-    st.components.v1.html("""<script>
-(function(){
-  function attach(){
-    try {
-      var doc = window.parent.document;
-      doc.querySelectorAll('[data-surah]').forEach(function(el){
-        if(el._sl) return;
-        el._sl = true;
-        el.addEventListener('click', function(){
-          var n = this.getAttribute('data-surah');
-          var inp = doc.querySelector('input[placeholder="surahclicktrigger"]');
-          if(!inp) return;
-          var setter = Object.getOwnPropertyDescriptor(
-            window.parent.HTMLInputElement.prototype, 'value').set;
-          setter.call(inp, n);
-          inp.dispatchEvent(new Event('input', {bubbles:true}));
-        });
-      });
-    } catch(e){}
-  }
-  attach();
-  setTimeout(attach, 400);
-  setTimeout(attach, 1200);
-})();
-</script>""", height=1)
 
