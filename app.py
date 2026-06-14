@@ -3,58 +3,40 @@ import requests
 import datetime
 import math
 import uuid
-import os
-import tempfile
+import base64
 
 st.set_page_config(page_title="Hifz", page_icon="📖", layout="centered")
 
-# Build the component directory at runtime — no CDN, protocol implemented inline via postMessage.
-_COMP_HTML = """<!DOCTYPE html>
-<html>
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<style>
-* { box-sizing: border-box; }
-body { margin: 0; padding: 0; }
-[data-surah] { cursor: pointer; }
-[data-surah]:hover { filter: brightness(1.08); }
-[data-surah]:active { filter: brightness(0.92); }
-</style>
-</head>
-<body>
-<div id="root"></div>
-<script>
-(function () {
-    var root = document.getElementById("root");
-    function setFrameHeight(h) {
-        window.parent.postMessage({ type: "streamlit:setFrameHeight", height: h }, "*");
-    }
-    function setComponentValue(v) {
-        window.parent.postMessage({ type: "streamlit:setComponentValue", value: v, dataType: "json" }, "*");
-    }
-    window.addEventListener("message", function (event) {
-        if (event.data.type === "streamlit:render") {
-            root.innerHTML = event.data.args.html;
-            root.querySelectorAll("[data-surah]").forEach(function (el) {
-                el.addEventListener("click", function () {
-                    setComponentValue(parseInt(this.getAttribute("data-surah"), 10));
-                });
-            });
-            setFrameHeight(document.documentElement.scrollHeight);
-        }
-    });
-    window.parent.postMessage({ type: "streamlit:componentReady", apiVersion: 1 }, "*");
-})();
-</script>
-</body>
-</html>
-"""
-_COMP_DIR = os.path.join(tempfile.gettempdir(), "hifz_surah_grid_comp")
-os.makedirs(_COMP_DIR, exist_ok=True)
-with open(os.path.join(_COMP_DIR, "index.html"), "w", encoding="utf-8") as _f:
-    _f.write(_COMP_HTML)
-_surah_grid_comp = st.components.v1.declare_component("surah_grid", path=_COMP_DIR)
+# Component HTML embedded as a data: URL — no directory, no CDN, no file system writes.
+_COMP_HTML = (
+    "<!DOCTYPE html><html><head><meta charset='UTF-8'>"
+    "<meta name='viewport' content='width=device-width,initial-scale=1'>"
+    "<style>*{box-sizing:border-box}body{margin:0;padding:0}"
+    "[data-surah]{cursor:pointer}[data-surah]:hover{filter:brightness(1.08)}"
+    "[data-surah]:active{filter:brightness(0.92)}</style></head>"
+    "<body><div id='root'></div><script>"
+    "(function(){"
+    "var root=document.getElementById('root');"
+    "function sfh(h){window.parent.postMessage({type:'streamlit:setFrameHeight',height:h},'*');}"
+    "function scv(v){window.parent.postMessage({type:'streamlit:setComponentValue',value:v,dataType:'json'},'*');}"
+    "window.addEventListener('message',function(e){"
+    "if(e.data&&e.data.type==='streamlit:render'){"
+    "root.innerHTML=e.data.args.html;"
+    "root.querySelectorAll('[data-surah]').forEach(function(el){"
+    "el.addEventListener('click',function(){"
+    "scv(parseInt(this.getAttribute('data-surah'),10));});"
+    "});"
+    "sfh(document.documentElement.scrollHeight);"
+    "}"
+    "});"
+    "window.parent.postMessage({type:'streamlit:componentReady',apiVersion:1},'*');"
+    "})();"
+    "</script></body></html>"
+)
+_surah_grid_comp = st.components.v1.declare_component(
+    "surah_grid",
+    url="data:text/html;charset=utf-8;base64," + base64.b64encode(_COMP_HTML.encode()).decode(),
+)
 
 try:
     BIN_ID = st.secrets["JSONBIN_BIN_ID"]
