@@ -708,14 +708,17 @@ function paint(){{
             s.setProperty('width','100%','important');
             s.setProperty('min-width','0','important');
             s.setProperty('overflow','hidden','important');
+            p.style.setProperty('width','100%','important');
+            p.style.setProperty('display','block','important');
+            p.style.setProperty('text-align','left','important');
             if(!numEl){{
                 var ret=c[4]?c[4]+'%':'';
                 p.innerHTML=
-                  "<span style='display:flex;align-items:center;width:100%;gap:2px;'>"
-                  +"<b class='hifz-n' style='flex:0 0 auto;font-weight:800;'>"+(n)+"</b>"
+                  "<span style='display:flex;align-items:center;width:100%;gap:4px;'>"
+                  +"<b class='hifz-n' style='flex:0 0 auto;font-weight:800;min-width:1.8em;'>"+(n)+"</b>"
                   +"<span style='flex:1;text-align:center;overflow:hidden;text-overflow:ellipsis;"
                   +"white-space:nowrap;font-weight:400;'>"+c[3]+"</span>"
-                  +"<span style='flex:0 0 auto;text-align:right;font-weight:600;'>"+ret+"</span>"
+                  +"<span style='flex:0 0 auto;text-align:right;font-weight:600;min-width:2.5em;'>"+ret+"</span>"
                   +"</span>";
             }}
             var ec=b.closest('[data-testid="element-container"]');
