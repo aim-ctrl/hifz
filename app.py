@@ -684,12 +684,18 @@ with tab_progress:
     st.markdown("""<style>
 [data-testid="stHorizontalBlock"]:has([data-testid="column"]:nth-child(9)) {
     gap: 3px !important;
-    margin-bottom: -6px !important;
+    margin-bottom: -14px !important;
+}
+[data-testid="stHorizontalBlock"]:has([data-testid="column"]:nth-child(9))
+[data-testid="stVerticalBlockBorderWrapper"],
+[data-testid="stHorizontalBlock"]:has([data-testid="column"]:nth-child(9))
+[data-testid="stVerticalBlock"] {
+    gap: 0 !important;
+    padding: 0 !important;
 }
 [data-testid="stHorizontalBlock"]:has([data-testid="column"]:nth-child(9))
 [data-testid="element-container"] {
-    padding-top: 0 !important;
-    padding-bottom: 0 !important;
+    padding: 0 !important;
     margin: 0 !important;
 }
 </style>""", unsafe_allow_html=True)
