@@ -714,13 +714,16 @@ function paint(){{
             s.setProperty('width','100%','important');
             s.setProperty('min-width','0','important');
             s.setProperty('overflow','hidden','important');
+            var ret=c[4]?c[4]+'%':'';
             if(!numEl){{
-                var ret=c[4]?c[4]+'%':'';
                 p.innerHTML=
                   "<b class='hifz-n' style='flex:0 0 auto!important;width:auto!important;font-weight:800;min-width:2em;'>"+(n)+"</b>"
                   +"<span style='flex:1 1 auto!important;text-align:center;overflow:hidden;text-overflow:ellipsis;"
                   +"white-space:nowrap;font-weight:400;min-width:0;'>"+c[3]+"</span>"
-                  +"<span style='flex:0 0 auto!important;width:auto!important;text-align:right;font-weight:600;min-width:2.5em;'>"+ret+"</span>";
+                  +"<span class='hifz-ret' style='flex:0 0 auto!important;width:auto!important;text-align:right;font-weight:600;min-width:2.5em;'>"+ret+"</span>";
+            }}else{{
+                var retEl=p.querySelector('.hifz-ret');
+                if(retEl&&retEl.textContent!==ret)retEl.textContent=ret;
             }}
             var ec=b.closest('[data-testid="element-container"]');
             if(ec){{
