@@ -138,17 +138,12 @@ GRADE_MULT_TABLE: dict[int, dict[float, float]] = {
 }
 MASTERED_S: float = 36.7    # S ≥ this → considered mastered
 
-# Retention histogram buckets and colours (10 bins, 10 % each)
-# <60 % red, 60-80 % yellow, 80-90 % blue, 90-100 % green
-def _ret_color(bin_idx: int) -> str:
-    pct = bin_idx * 10
+# Retention histogram colours — takes actual percentage value
+def _ret_color_pct(pct: int) -> str:
     if pct < 60:   return "#c0392b"   # red
     if pct < 80:   return "#d4a017"   # yellow
     if pct < 90:   return "#1a6fa8"   # blue
     return "#1a7a4a"                   # green
-
-RET_COLORS = [_ret_color(i) for i in range(10)]
-RET_LABELS = [f"{i*10:02d}–{i*10+10}%" for i in range(10)]
 
 
 def s_to_color_rgb(s: float) -> tuple:
@@ -428,10 +423,14 @@ potential_juz_mastered = sum(
     if JUZ_SURAHS.get(j) and all(s in surah_stability for s in JUZ_SURAHS[j])
 )
 
-# Retention histogram: 10 buckets 0-10%, 10-20%, …, 90-100%
-ret_buckets = [0] * 10
+# Retention histogram: bin 0 = ≤50%, bins 1-50 = 51%-100% (1% each)
+ret_buckets = [0] * 51
 for r in surah_retention.values():
-    ret_buckets[min(9, int(r * 10))] += 1
+    pct = int(r * 100)
+    if pct <= 50:
+        ret_buckets[0] += 1
+    else:
+        ret_buckets[min(50, pct - 50)] += 1
 
 # --- DIALOG TRIGGER ---
 if "grade_surah" not in st.session_state:
@@ -525,15 +524,18 @@ with tab_dash:
 
     # Retention histogram
     max_ret = max(ret_buckets) if any(ret_buckets) else 1
-    bars_html = "<div style='display:flex;align-items:flex-end;gap:6px;height:60px;margin-top:4px;'>"
-    for i in range(10):
-        h = int((ret_buckets[i] / max_ret) * 52) if max_ret else 0
+    bars_html = "<div style='display:flex;align-items:flex-end;gap:2px;height:72px;margin-top:4px;'>"
+    for i in range(51):
+        h = int((ret_buckets[i] / max_ret) * 56) if max_ret else 0
+        pct = 50 if i == 0 else 50 + i
+        color = _ret_color_pct(pct)
+        show_label = (i == 0) or ((50 + i) % 10 == 0)
+        label = ("≤50" if i == 0 else f"{50 + i}") if show_label else ""
         bars_html += (
-            f"<div style='flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;'>"
-            f"<div style='font-size:0.6em;font-weight:600;color:{RET_COLORS[i]};'>{ret_buckets[i]}</div>"
-            f"<div style='width:100%;height:{h}px;background:{RET_COLORS[i]};"
-            f"border-radius:3px 3px 0 0;min-height:3px;'></div>"
-            f"<div style='font-size:0.5em;opacity:0.5;text-align:center;line-height:1.1;'>{RET_LABELS[i]}</div>"
+            f"<div style='flex:1;display:flex;flex-direction:column;align-items:center;gap:1px;'>"
+            f"<div style='width:100%;height:{h}px;background:{color};"
+            f"border-radius:2px 2px 0 0;min-height:{'2' if ret_buckets[i] else '0'}px;'></div>"
+            f"<div style='font-size:0.45em;opacity:0.55;text-align:center;line-height:1;'>{label}</div>"
             f"</div>"
         )
     bars_html += "</div>"
