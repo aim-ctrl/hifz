@@ -376,6 +376,18 @@ footer { visibility: hidden; }
 
 
 [data-testid="stVerticalBlockBorderWrapper"] > div { padding: 0.45rem 0.55rem !important; }
+
+button[data-testid="stBaseButton-secondary"] {
+    height: 20px !important;
+    min-height: 0 !important;
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
+    line-height: 20px !important;
+}
+[data-testid="stVerticalBlock"]:has([data-testid="stButton"]) {
+    gap: 1px !important;
+    row-gap: 1px !important;
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -710,6 +722,7 @@ function paint(){{
             s.setProperty('opacity',c[2],'important');
             s.setProperty('border-color',c[0],'important');
             s.setProperty('height','20px','important');
+            s.setProperty('min-height','0','important');
             s.setProperty('padding','0 6px','important');
             s.setProperty('font-size','0.72em','important');
             s.setProperty('border-radius','4px','important');
