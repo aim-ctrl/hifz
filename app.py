@@ -709,7 +709,7 @@ function paint(){{
             s.setProperty('color',c[1],'important');
             s.setProperty('opacity',c[2],'important');
             s.setProperty('border-color',c[0],'important');
-            s.setProperty('height','26px','important');
+            s.setProperty('height','20px','important');
             s.setProperty('padding','0 6px','important');
             s.setProperty('font-size','0.72em','important');
             s.setProperty('border-radius','4px','important');
@@ -734,8 +734,8 @@ function paint(){{
                 ec.style.setProperty('min-height','0','important');
                 var el=ec.parentElement;
                 while(el){{
-                    el.style.setProperty('gap','2px','important');
-                    el.style.setProperty('row-gap','2px','important');
+                    el.style.setProperty('gap','1px','important');
+                    el.style.setProperty('row-gap','1px','important');
                     if(el.getAttribute('data-testid')==='stVerticalBlock')break;
                     el=el.parentElement;
                 }}
