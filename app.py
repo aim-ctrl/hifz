@@ -637,10 +637,9 @@ with tab_progress:
     _clr = {}
     for _n in range(1, 115):
         _s = surah_stability.get(_n, 0.0)
-        _r = surah_retention.get(_n, 0.0)
         if _n in surah_stability:
-            _bg = s_to_css(_s, max(0.25, _r))
-            _op = round(0.35 + max(0.0, min(1.0, (_r - 0.60) / 0.40)) * 0.65, 2)
+            _bg = s_to_css(_s, 1.0)
+            _op = 1.0
             _fg = "#fff"
         else:
             _bg, _op, _fg = "rgba(128,128,128,0.13)", 0.42, "currentColor"
@@ -655,7 +654,7 @@ with tab_progress:
         "rgba(192,57,43,1) 0%,rgba(211,84,0,1) 25%,rgba(183,149,11,1) 50%,"
         "rgba(26,111,168,1) 75%,rgba(26,122,74,1) 100%);'></div>"
         "<span style='white-space:nowrap;'>S=500+</span>"
-        "<span style='opacity:0.6;margin-left:6px;'>· opacity = retention</span>"
+        "<span style='opacity:0.6;margin-left:6px;'>· fyllnad = retention</span>"
         "</div>",
         unsafe_allow_html=True,
     )
@@ -717,9 +716,14 @@ function paint(){{
             if(!n||n<1||n>114)return;
             var c=C[n];if(!c)return;
             var s=b.style;
-            s.setProperty('background',c[0],'important');
+            var rPct=c[4]?parseInt(c[4]):0;
+            var dimClr='rgba(120,120,120,0.18)';
+            var bg=c[4]
+                ?'linear-gradient(to right,'+c[0]+' '+rPct+'%,'+dimClr+' '+rPct+'%)'
+                :c[0];
+            s.setProperty('background',bg,'important');
             s.setProperty('color',c[1],'important');
-            s.setProperty('opacity',c[2],'important');
+            s.setProperty('opacity','1','important');
             s.setProperty('border-color',c[0],'important');
             s.setProperty('height','20px','important');
             s.setProperty('min-height','0','important');
