@@ -146,15 +146,19 @@ def _ret_color_pct(pct: int) -> str:
     return "#1a7a4a"                   # green
 
 
+# (ln(S), RGB) — shift the ln values right to delay a colour, left to reach it sooner
+COLOR_STOPS = [
+    (0.0,  (192,  57,  43)),   # S=1      red
+    (2.0,  (211,  84,   0)),   # S≈7      orange
+    (3.4,  (183, 149,  11)),   # S≈30     yellow
+    (4.8,  ( 26, 111, 168)),   # S≈120    blue
+    (6.21, ( 26, 122,  74)),   # S=500    green
+]
+
+
 def s_to_color_rgb(s: float) -> tuple:
     """Log-scale S → RGB: red(S≈1) → orange → yellow → blue → green(S≈500+)."""
-    stops = [
-        (0.0, (192,  57,  43)),
-        (1.6, (211,  84,   0)),
-        (2.7, (183, 149,  11)),
-        (3.9, ( 26, 111, 168)),
-        (6.21, ( 26, 122,  74)),
-    ]
+    stops = COLOR_STOPS
     ls = min(math.log(max(1.0, s)), stops[-1][0])
     for i in range(len(stops) - 1):
         lo, c1 = stops[i]
@@ -658,14 +662,16 @@ with tab_progress:
             _bg, _op, _fg = "rgba(128,128,128,0.13)", 0.42, "currentColor"
         _clr[_n] = (_bg, _fg, _op)
 
-    # Gradient legend
+    # Gradient legend (generated from COLOR_STOPS so it always matches the buttons)
+    _grad = ",".join(
+        f"rgba({c[0]},{c[1]},{c[2]},1) {round(ls / COLOR_STOPS[-1][0] * 100)}%"
+        for ls, c in COLOR_STOPS
+    )
     st.markdown(
         "<div style='display:flex;align-items:center;gap:8px;font-size:0.58em;"
         "margin-bottom:6px;opacity:0.55;'>"
         "<span style='white-space:nowrap;'>S=1</span>"
-        "<div style='flex:1;height:6px;border-radius:3px;background:linear-gradient(to right,"
-        "rgba(192,57,43,1) 0%,rgba(211,84,0,1) 25%,rgba(183,149,11,1) 50%,"
-        "rgba(26,111,168,1) 75%,rgba(26,122,74,1) 100%);'></div>"
+        f"<div style='flex:1;height:6px;border-radius:3px;background:linear-gradient(to right,{_grad});'></div>"
         "<span style='white-space:nowrap;'>S=500+</span>"
         "<span style='opacity:0.6;margin-left:6px;'>· fyllnad = retention</span>"
         "</div>",
