@@ -307,8 +307,8 @@ def surah_dialog(num: int):
                 grade_hit = i + 1
 
     new_s = st.number_input(
-        "S direkt",
-        min_value=S_MIN, max_value=S_MAX,
+        "S direkt (-1 = ta bort)",
+        min_value=-1.0, max_value=S_MAX,
         value=float(round(s_val, 1)), step=1.0,
         key=f"ds_{num}",
     )
@@ -323,6 +323,19 @@ def surah_dialog(num: int):
             st.rerun()
 
     def _apply(new_stability: float):
+        # S = -1 → remove the surah from the database entirely
+        if new_stability <= -1:
+            st.session_state.db_data = [
+                d for d in st.session_state.db_data
+                if d["namn"].split(".")[0].strip() != str(num)
+            ]
+            save_to_db(st.session_state.db_data)
+            st.toast(f"{name} borttagen")
+            del st.session_state["grade_surah"]
+            st.session_state.pop("sg", None)
+            st.rerun()
+            return
+
         new_stability = max(S_MIN, min(S_MAX, new_stability))
         _today = datetime.date.today()
         _today_str = str(_today)
@@ -765,4 +778,3 @@ new MutationObserver(paint).observe(
     window.parent.document.body,{{childList:true,subtree:true,attributes:false}});
 }})();
 </script>""", height=1)
-
