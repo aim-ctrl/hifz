@@ -149,9 +149,9 @@ def _ret_color_pct(pct: int) -> str:
 # (ln(S), RGB) — shift the ln values right to delay a colour, left to reach it sooner
 COLOR_STOPS = [
     (0.0,  (192,  57,  43)),   # S=1      red
-    (2.0,  (211,  84,   0)),   # S≈7      orange
-    (3.4,  (183, 149,  11)),   # S≈30     yellow
-    (4.8,  ( 26, 111, 168)),   # S≈120    blue
+    (2.5,  (211,  84,   0)),   # S≈7      orange
+    (3.6,  (183, 149,  11)),   # S≈30     yellow
+    (5.2,  ( 26, 111, 168)),   # S≈120    blue
     (6.21, ( 26, 122,  74)),   # S=500    green
 ]
 
