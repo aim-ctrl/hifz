@@ -226,12 +226,13 @@ for n in range(1, 115):
     if n in S:
         r, g, b = s_to_rgb(S[n])
         p = int(R[n] * 100)
-        bg = f"linear-gradient(to top,rgb({r},{g},{b}) {p}%,rgba({r},{g},{b},.22) {p}%)"
-        fg = "#fff"
+        bg = f"linear-gradient(to right,rgba({r},{g},{b},.55) {p}%,rgba({r},{g},{b},.12) {p}%)"
+        edge, fg, ret = f"rgb({r},{g},{b})", "#fff", f"{p}%"
     else:
-        bg, fg = "rgba(239,230,210,.05)", "rgba(239,230,210,.45)"
+        bg, edge, fg, ret = "rgba(239,230,210,.04)", "rgba(239,230,210,.15)", "rgba(239,230,210,.6)", ""
     tile_css += (f".st-key-sb_{n} button{{background:{bg}!important;color:{fg}!important;"
-                 f"border:1px solid rgba(239,230,210,.12)!important;}}")
+                 f"border:1px solid rgba(239,230,210,.1)!important;border-left:4px solid {edge}!important;}}"
+                 f".st-key-sb_{n} button::after{{content:'{ret}';margin-left:auto;font-weight:600;padding-left:8px}}")
 
 st.markdown(f"""<style>
 @import url('https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,600&family=Amiri&family=Instrument+Sans:wght@400;600&display=swap');
@@ -260,7 +261,14 @@ button[data-baseweb="tab"][aria-selected="true"]{{color:var(--gold)}}
 [data-baseweb="tab-highlight"]{{background:var(--gold)!important}}
 div[role="dialog"]{{background:var(--panel)!important;color:var(--parch)}}
 [data-baseweb="select"]>div,input{{background:var(--panel)!important;color:var(--parch)!important}}
-[class*="st-key-sb_"] button{{min-height:2.6rem!important;font-weight:600;font-size:.8rem!important}}
+[class*="st-key-sb_"] button{{min-height:2.5rem!important;justify-content:flex-start!important;padding:0 .75rem!important;
+ text-shadow:0 1px 2px rgba(0,0,0,.4);font-size:.92rem!important}}
+[class*="st-key-sb_"] button p{{margin:0;text-align:left}}
+[class*="st-key-sb_"] button p strong{{display:inline-block;min-width:2.1rem;color:var(--gold)}}
+[data-baseweb="popover"] *,ul[role="listbox"] *{{background:var(--panel)!important;color:var(--parch)!important}}
+[data-testid="stVerticalBlockBorderWrapper"]{{background:var(--panel);border:1px solid var(--line)!important;
+ border-radius:14px;margin-bottom:6px}}
+[data-testid="stRadio"] label{{font-size:.85rem}}
 {tile_css}
 </style>""", unsafe_allow_html=True)
 
@@ -301,7 +309,7 @@ if st.session_state.get("pick"):
 C = 2 * math.pi * 54
 pm, ps = m_words / TOTAL_WORDS, s_words / TOTAL_WORDS
 st.markdown(H(f"""
-<div class='card' style='display:flex;align-items:center;gap:16px;background:linear-gradient(135deg,#1a2f4f,#14233a)'>
+<div class='card' style='display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:14px 18px;background:linear-gradient(135deg,#1a2f4f,#14233a);box-shadow:inset 0 0 0 4px #14233a,inset 0 0 0 5px rgba(212,169,79,.35)'>
  <svg width='132' height='132' viewBox='0 0 132 132' style='flex:none'>
   <circle cx='66' cy='66' r='54' fill='none' stroke='#26385a' stroke-width='9'/>
   <circle cx='66' cy='66' r='54' fill='none' stroke='#d4a94f' stroke-opacity='.35' stroke-width='9' stroke-linecap='round'
@@ -311,12 +319,12 @@ st.markdown(H(f"""
   <text x='66' y='64' text-anchor='middle' font-family='Newsreader,serif' font-size='30' fill='#efe6d2'>{pm * 100:.1f}%</text>
   <text x='66' y='84' text-anchor='middle' font-family='Amiri,serif' font-size='18' fill='#d4a94f'>حفظ</text>
  </svg>
- <div style='flex:1'>
+ <div style='flex:1 1 180px'>
   <div class='serif' style='font-size:1.7rem;line-height:1.1'>{equiv_juz} juz</div>
   <div class='muted' style='margin-bottom:10px'>{m_words:,} av {TOTAL_WORDS:,} ord bemästrade</div>
   <div style='display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:.8rem'>
    <div><b>{len(mast)}</b>/114 suror</div><div><b>{juz_done}</b>/30 juz</div>
-   <div><b>{m_verses:,}</b> verser</div><div><b>{len(S) - len(mast)}</b> pågår</div>
+   <div><b>{m_verses:,}</b> verser</div><div><b>{len(S) - len(mast)}</b> pågår</div><div style='grid-column:1/-1;color:#d4a94f'><b>{len(due)}</b> att repetera idag</div>
   </div>
  </div>
 </div>"""), unsafe_allow_html=True)
@@ -332,6 +340,7 @@ with tab_today:
             <div class='muted'>{'Nästa repetition: ' + nxt if nxt else 'Öppna fliken Suror och lägg till din första sura.'}</div>
             </div>"""), unsafe_allow_html=True)
     for d in due:
+      with st.container(border=True):
         r = compute_retention(d, TODAY)
         r_c = "#c0392b" if r < .6 else "#d4a017" if r < .8 else "#1a6fa8" if r < .9 else "#1a7a4a"
         late = (TODAY - datetime.date.fromisoformat(d["nasta_repetition"])).days
@@ -417,11 +426,14 @@ with tab_suras:
     st.markdown(H(f"""<div class='muted' style='display:flex;align-items:center;gap:8px;margin:2px 0 8px'>
         <span>S 1</span><div style='flex:1;height:5px;border-radius:3px;background:linear-gradient(to right,{grad})'></div>
         <span>S 500</span></div>
-        <div class='muted' style='margin-bottom:8px'>Färg = stabilitet · fyllnad = retention. Tryck på en sura för att betygsätta.</div>"""),
+        <div class='muted' style='margin-bottom:8px'>Färg = stabilitet · fyllnad = retention. Tryck på en rad för att betygsätta.</div>"""),
                 unsafe_allow_html=True)
-    for row in range(19):
-        for k, col in enumerate(st.columns(6)):
-            n = row * 6 + k + 1
-            tip = f"{raw_surah_names[n - 1]}" + (f" · R {int(R[n] * 100)}% · S {S[n]:.1f}" if n in S else "")
-            if col.button(str(n), key=f"sb_{n}", help=tip, use_container_width=True):
-                surah_dialog(n)
+    flt = st.radio("Visa", ["Alla", "Pågående", "Bemästrade", "Ej påbörjade"], horizontal=True,
+                   label_visibility="collapsed")
+    for n in range(1, 115):
+        if ((flt == "Pågående" and not (n in S and S[n] < MASTERED_S))
+                or (flt == "Bemästrade" and S.get(n, 0) < MASTERED_S)
+                or (flt == "Ej påbörjade" and n in S)):
+            continue
+        if st.button(f"**{n}** {raw_surah_names[n - 1]}", key=f"sb_{n}", use_container_width=True):
+            surah_dialog(n)
