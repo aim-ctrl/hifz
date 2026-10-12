@@ -185,16 +185,6 @@ def apply_s(num, s_new):
     save_to_db(st.session_state.db_data)
 
 
-def grade_cb(item_id, grade):
-    for d in st.session_state.db_data:
-        if str(d["id"]) == str(item_id):
-            s_new = get_stability(d) * get_mult(grade, compute_retention(d, TODAY))
-            set_entry(d, s_new)
-            st.toast(f"{d['namn']} · S {s_new:.1f}", icon="✅")
-            break
-    save_to_db(st.session_state.db_data)
-
-
 # ───────────────────────── STATS ─────────────────────────
 data = st.session_state.db_data
 S, R, ITEM = {}, {}, {}
@@ -213,9 +203,6 @@ s_verses = sum(SURAH_VERSES[n - 1] for n in S)
 juz_done = sum(1 for j in range(1, 31) if all(S.get(s, 0) >= MASTERED_S for s in JUZ_SURAHS[j]))
 equiv_juz = round(sum(sum(w for s, w in JUZ_SURAH_WORDS[j].items() if S.get(s, 0) >= MASTERED_S)
                       / JUZ_TOTAL_WORDS[j] for j in range(1, 31)), 1)
-due = sorted([d for d in data if d.get("nasta_repetition", "9999") <= str(TODAY)],
-             key=lambda d: compute_retention(d, TODAY))
-
 # ───────────────────────── STYLE ─────────────────────────
 def H(s):  # collapse indentation so markdown never turns HTML into a code block
     return "".join(l.strip() for l in s.splitlines())
@@ -264,7 +251,8 @@ div[role="dialog"]{{background:var(--panel)!important;color:var(--parch)}}
 [class*="st-key-sb_"] button{{min-height:2.5rem!important;justify-content:flex-start!important;padding:0 .75rem!important;
  text-shadow:0 1px 2px rgba(0,0,0,.4);font-size:.92rem!important}}
 [class*="st-key-sb_"] button p{{margin:0;text-align:left}}
-[class*="st-key-sb_"] button p strong{{display:inline-block;min-width:2.1rem;color:var(--gold)}}
+[class*="st-key-sb_"] button>div{{flex:0 1 auto;text-align:left!important;justify-content:flex-start!important}}
+[class*="st-key-sb_"] button p strong{{display:inline-block;width:2.2rem;text-align:left;color:var(--gold)}}
 [data-baseweb="popover"] *,ul[role="listbox"] *{{background:var(--panel)!important;color:var(--parch)!important}}
 [data-testid="stVerticalBlockBorderWrapper"]{{background:var(--panel);border:1px solid var(--line)!important;
  border-radius:14px;margin-bottom:6px}}
@@ -302,9 +290,6 @@ def surah_dialog(num):
         st.rerun()
 
 
-if st.session_state.get("pick"):
-    surah_dialog(st.session_state.pop("pick"))
-
 # ───────────────────────── HERO ─────────────────────────
 C = 2 * math.pi * 54
 pm, ps = m_words / TOTAL_WORDS, s_words / TOTAL_WORDS
@@ -324,59 +309,15 @@ st.markdown(H(f"""
   <div class='muted' style='margin-bottom:10px'>{m_words:,} av {TOTAL_WORDS:,} ord bemästrade</div>
   <div style='display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:.8rem'>
    <div><b>{len(mast)}</b>/114 suror</div><div><b>{juz_done}</b>/30 juz</div>
-   <div><b>{m_verses:,}</b> verser</div><div><b>{len(S) - len(mast)}</b> pågår</div><div style='grid-column:1/-1;color:#d4a94f'><b>{len(due)}</b> att repetera idag</div>
+   <div><b>{m_verses:,}</b> verser</div><div><b>{len(S) - len(mast)}</b> pågår</div>
   </div>
  </div>
 </div>"""), unsafe_allow_html=True)
 
-tab_today, tab_over, tab_suras = st.tabs([f"Idag ({len(due)})", "Översikt", "Suror"])
-
-# ───────────────────────── TODAY ─────────────────────────
-with tab_today:
-    if not due:
-        nxt = min((d["nasta_repetition"] for d in data), default=None)
-        st.markdown(H(f"""<div class='card' style='text-align:center;padding:28px 14px'>
-            <div class='serif' style='font-size:1.4rem'>Allt är repeterat</div>
-            <div class='muted'>{'Nästa repetition: ' + nxt if nxt else 'Öppna fliken Suror och lägg till din första sura.'}</div>
-            </div>"""), unsafe_allow_html=True)
-    for d in due:
-      with st.container(border=True):
-        r = compute_retention(d, TODAY)
-        r_c = "#c0392b" if r < .6 else "#d4a017" if r < .8 else "#1a6fa8" if r < .9 else "#1a7a4a"
-        late = (TODAY - datetime.date.fromisoformat(d["nasta_repetition"])).days
-        st.markdown(H(f"""<div style='display:flex;justify-content:space-between;align-items:baseline;margin-top:8px'>
-            <span class='serif' style='font-size:1.1rem'>{d['namn']}</span>
-            <span style='color:{r_c};font-weight:600'>{int(r * 100)}%</span></div>
-            <div style='height:3px;border-radius:2px;background:#26385a;margin:4px 0 2px'>
-            <div style='height:3px;border-radius:2px;width:{int(r * 100)}%;background:{r_c}'></div></div>
-            <div class='muted'>S {get_stability(d):.1f}{f' · {late} d försenad' if late > 0 else ''}</div>"""),
-                    unsafe_allow_html=True)
-        for i, col in enumerate(st.columns(5)):
-            col.button(GRADE_OPTIONS[i], key=f"g_{d['id']}_{i}", on_click=grade_cb,
-                       args=(d["id"], i + 1), use_container_width=True)
+tab_over, tab_stat, tab_suras = st.tabs(["Översikt", "Statistik", "Suror"])
 
 # ───────────────────────── OVERVIEW ─────────────────────────
 with tab_over:
-    # next 7 days
-    days = [TODAY + datetime.timedelta(days=i) for i in range(7)]
-    cnt = [0] * 7
-    for d in data:
-        try:
-            k = (datetime.date.fromisoformat(d["nasta_repetition"]) - TODAY).days
-            if k < 7:
-                cnt[max(0, k)] += 1
-        except Exception:
-            pass
-    mx = max(cnt) or 1
-    wd = ["mån", "tis", "ons", "tors", "fre", "lör", "sön"]
-    bars = "".join(
-        f"<div style='flex:1;text-align:center'><div class='muted'>{c}</div>"
-        f"<div style='height:{6 + int(c / mx * 44)}px;background:{'#d4a94f' if i == 0 else '#3a5688'};"
-        f"border-radius:4px;margin:2px 3px'></div><div class='muted'>{'idag' if i == 0 else wd[dd.weekday()]}</div></div>"
-        for i, (c, dd) in enumerate(zip(cnt, days)))
-    st.markdown(H(f"<div class='card'><div class='h2'>Kommande vecka</div>"
-                  f"<div style='display:flex;align-items:flex-end'>{bars}</div></div>"), unsafe_allow_html=True)
-
     # retention histogram
     bk = [0] * 51
     for r in R.values():
@@ -416,17 +357,80 @@ with tab_over:
                   f"<div class='muted' style='margin-top:8px'>Guld = hela juz bemästrat (S ≥ {MASTERED_S:.0f}). "
                   f"Påbörjat: {s_verses:,} verser.</div></div>"), unsafe_allow_html=True)
 
+# ───────────────────────── STATISTICS ─────────────────────────
+with tab_stat:
+    revs = []
+    for d in data:
+        try:
+            revs.append((TODAY - datetime.date.fromisoformat(d["last_reviewed"])).days)
+        except Exception:
+            pass
+    avg_r = sum(R.values()) / len(R) if R else 0
+    avg_s = sum(S.values()) / len(S) if S else 0
+    srt = sorted(S.values())
+    med_s = srt[len(srt) // 2] if srt else 0
+    juz_started = sum(1 for j in range(1, 31) if any(s in S for s in JUZ_SURAHS[j]))
+
+    def pbar(lab, m, s_, t):
+        return (f"<div style='margin:9px 0'><div style='display:flex;justify-content:space-between;font-size:.82rem'>"
+                f"<span>{lab}</span><span class='muted'><b style='color:#d4a94f'>{m / t:.0%}</b> bemästrat · {s_ / t:.0%} påbörjat</span></div>"
+                f"<div style='height:8px;border-radius:4px;background:#26385a;margin-top:4px;position:relative'>"
+                f"<div style='position:absolute;height:8px;border-radius:4px;width:{s_ / t * 100:.1f}%;background:rgba(212,169,79,.35)'></div>"
+                f"<div style='position:absolute;height:8px;border-radius:4px;width:{m / t * 100:.1f}%;background:#d4a94f'></div></div></div>")
+
+    st.markdown(H("<div class='card'><div class='h2'>Framsteg</div>"
+                  + pbar("Suror", len(mast), len(S), 114) + pbar("Juz", juz_done, juz_started, 30)
+                  + pbar("Verser", m_verses, s_verses, TOTAL_VERSES) + pbar("Ord", m_words, s_words, TOTAL_WORDS)
+                  + "</div>"), unsafe_allow_html=True)
+
+    def tile(l, v, sub=""):
+        return (f"<div style='background:rgba(239,230,210,.05);border:1px solid #26385a;border-radius:10px;padding:10px'>"
+                f"<div class='muted'>{l}</div><div class='serif' style='font-size:1.45rem;line-height:1.25'>{v}</div>"
+                f"<div class='muted'>{sub}</div></div>")
+
+    tiles = "".join([
+        tile("Påbörjade suror", len(S), f"av 114 · {len(S) / 114:.0%}"),
+        tile("Bemästrade suror", len(mast), f"S ≥ {MASTERED_S:.0f}"),
+        tile("Snitt-retention", f"{avg_r:.0%}", "alla påbörjade"),
+        tile("Snitt-stabilitet", f"{avg_s:.1f} d", f"median {med_s:.1f} d"),
+        tile("Verser påbörjade", f"{s_verses:,}", f"{s_verses / TOTAL_VERSES:.1%} av Koranen"),
+        tile("Ord påbörjade", f"{s_words:,}", f"{s_words / TOTAL_WORDS:.1%} av Koranen"),
+        tile("Granskade 7 dagar", sum(1 for x in revs if x < 7), f"{sum(1 for x in revs if x == 0)} idag"),
+        tile("Granskade 30 dagar", sum(1 for x in revs if x < 30), "suror"),
+    ])
+    st.markdown(H(f"<div style='display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px'>{tiles}</div>"),
+                unsafe_allow_html=True)
+
+    bins = [(0, 2, "under 2 d", 1.5), (2, 7, "2–7 d", 4), (7, 21, "7–21 d", 12),
+            (21, 37, "21–37 d", 28), (37, 100, "37–100 d", 60), (100, 1e9, "100 d +", 200)]
+    cts = [sum(1 for s in S.values() if lo <= s < hi) for lo, hi, _, _ in bins]
+    mx = max(cts) or 1
+    rows = ""
+    for (lo, hi, lab, rep), c in zip(bins, cts):
+        r_, g_, b_ = s_to_rgb(rep)
+        rows += (f"<div style='display:flex;align-items:center;gap:8px;margin:6px 0'>"
+                 f"<div class='muted' style='width:62px'>{lab}</div>"
+                 f"<div style='flex:1;height:10px;border-radius:5px;background:#26385a'>"
+                 f"<div style='height:10px;border-radius:5px;width:{c / mx * 100:.0f}%;background:rgb({r_},{g_},{b_})'></div></div>"
+                 f"<div style='width:24px;text-align:right'>{c}</div></div>")
+    st.markdown(H(f"<div class='card'><div class='h2'>Stabilitet</div>{rows}</div>"), unsafe_allow_html=True)
+
+    empty = "<div class='muted'>Inga data än</div>"
+
+    def toplist(title, items, fmt):
+        rows = "".join(f"<div style='display:flex;justify-content:space-between;padding:6px 0;border-top:1px solid #26385a'>"
+                       f"<span>{n}. {raw_surah_names[n - 1]}</span><b>{fmt(n)}</b></div>" for n in items)
+        st.markdown(H(f"<div class='card'><div class='h2'>{title}</div>{rows or empty}</div>"), unsafe_allow_html=True)
+
+    toplist("Starkast", sorted(S, key=lambda n: -S[n])[:5], lambda n: f"S {S[n]:.0f}")
+    toplist("Lägst retention", sorted(R, key=lambda n: R[n])[:5], lambda n: f"{int(R[n] * 100)}%")
+
 # ───────────────────────── SURAHS ─────────────────────────
 with tab_suras:
-    st.selectbox("Hitta sura", SURAH_LISTA, index=None, placeholder="Sök på namn eller nummer", key="q",
-                 label_visibility="collapsed",
-                 on_change=lambda: st.session_state.update(pick=int(st.session_state.q.split(".")[0]))
-                 if st.session_state.q else None)
     grad = ",".join(f"rgb{s_to_rgb(v)}" for v in (1, 7, 30, 120, 500))
     st.markdown(H(f"""<div class='muted' style='display:flex;align-items:center;gap:8px;margin:2px 0 8px'>
         <span>S 1</span><div style='flex:1;height:5px;border-radius:3px;background:linear-gradient(to right,{grad})'></div>
-        <span>S 500</span></div>
-        <div class='muted' style='margin-bottom:8px'>Färg = stabilitet · fyllnad = retention. Tryck på en rad för att betygsätta.</div>"""),
+        <span>S 500</span></div>"""),
                 unsafe_allow_html=True)
     flt = st.radio("Visa", ["Alla", "Pågående", "Bemästrade", "Ej påbörjade"], horizontal=True,
                    label_visibility="collapsed")
