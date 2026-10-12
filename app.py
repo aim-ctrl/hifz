@@ -39,6 +39,7 @@ raw_surah_names = [
     "Al-Kafirun", "An-Nasr", "Al-Masad", "Al-Ikhlas", "Al-Falaq", "An-Nas",
 ]
 SURAH_LISTA = [f"{i}. {n}" for i, n in enumerate(raw_surah_names, 1)]
+ARABIC = ['الفاتحة', 'البقرة', 'آل عمران', 'النساء', 'المائدة', 'الأنعام', 'الأعراف', 'الأنفال', 'التوبة', 'يونس', 'هود', 'يوسف', 'الرعد', 'إبراهيم', 'الحجر', 'النحل', 'الإسراء', 'الكهف', 'مريم', 'طه', 'الأنبياء', 'الحج', 'المؤمنون', 'النور', 'الفرقان', 'الشعراء', 'النمل', 'القصص', 'العنكبوت', 'الروم', 'لقمان', 'السجدة', 'الأحزاب', 'سبأ', 'فاطر', 'يس', 'الصافات', 'ص', 'الزمر', 'غافر', 'فصلت', 'الشورى', 'الزخرف', 'الدخان', 'الجاثية', 'الأحقاف', 'محمد', 'الفتح', 'الحجرات', 'ق', 'الذاريات', 'الطور', 'النجم', 'القمر', 'الرحمن', 'الواقعة', 'الحديد', 'المجادلة', 'الحشر', 'الممتحنة', 'الصف', 'الجمعة', 'المنافقون', 'التغابن', 'الطلاق', 'التحريم', 'الملك', 'القلم', 'الحاقة', 'المعارج', 'نوح', 'الجن', 'المزمل', 'المدثر', 'القيامة', 'الإنسان', 'المرسلات', 'النبأ', 'النازعات', 'عبس', 'التكوير', 'الانفطار', 'المطففين', 'الانشقاق', 'البروج', 'الطارق', 'الأعلى', 'الغاشية', 'الفجر', 'البلد', 'الشمس', 'الليل', 'الضحى', 'الشرح', 'التين', 'العلق', 'القدر', 'البينة', 'الزلزلة', 'العاديات', 'القارعة', 'التكاثر', 'العصر', 'الهمزة', 'الفيل', 'قريش', 'الماعون', 'الكوثر', 'الكافرون', 'النصر', 'المسد', 'الإخلاص', 'الفلق', 'الناس']
 
 SURAH_VERSES = [
     7, 286, 200, 176, 120, 165, 206, 75, 129, 109, 123, 111, 43, 52, 99, 128, 111, 110, 98, 135,
@@ -219,7 +220,8 @@ for n in range(1, 115):
         bg, edge, fg, ret = "rgba(239,230,210,.04)", "rgba(239,230,210,.15)", "rgba(239,230,210,.6)", ""
     tile_css += (f".st-key-sb_{n} button{{background:{bg}!important;color:{fg}!important;"
                  f"border:1px solid rgba(239,230,210,.1)!important;border-left:4px solid {edge}!important;}}"
-                 f".st-key-sb_{n} button::after{{content:'{ret}';margin-left:auto;font-weight:600;padding-left:8px}}")
+                 f".st-key-sb_{n} button::before{{content:'{ARABIC[n - 1]}'}}"
+                 f".st-key-sb_{n} button::after{{content:'{ret}'}}")
 
 st.markdown(f"""<style>
 @import url('https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,600&family=Amiri&family=Instrument+Sans:wght@400;600&display=swap');
@@ -251,6 +253,12 @@ div[role="dialog"]{{background:var(--panel)!important;color:var(--parch)}}
 [class*="st-key-sb_"] button{{min-height:2.5rem!important;justify-content:flex-start!important;padding:0 .75rem!important;
  text-shadow:0 1px 2px rgba(0,0,0,.4);font-size:.92rem!important}}
 [class*="st-key-sb_"] button p{{margin:0;text-align:left}}
+[class*="st-key-sb_"] button>div{{order:1}}
+[class*="st-key-sb_"] button::before{{order:2;margin-left:auto;font-family:'Amiri',serif;font-size:1.15rem;opacity:.9;
+ padding-right:10px;direction:rtl}}
+[class*="st-key-sb_"] button::after{{order:3;min-width:2.5rem;text-align:right;font-weight:600}}
+[data-testid="stExpander"] details{{background:var(--panel);border:1px solid var(--line)!important;border-radius:12px}}
+[data-testid="stExpander"] summary,[data-testid="stExpander"] summary p{{color:var(--parch);font-family:'Newsreader',serif;font-size:1.02rem}}
 [class*="st-key-sb_"] button>div{{flex:0 1 auto;text-align:left!important;justify-content:flex-start!important}}
 [class*="st-key-sb_"] button p strong{{display:inline-block;width:2.2rem;text-align:left;color:var(--gold)}}
 [data-baseweb="popover"] *,ul[role="listbox"] *{{background:var(--panel)!important;color:var(--parch)!important}}
@@ -261,6 +269,25 @@ div[role="dialog"]{{background:var(--panel)!important;color:var(--parch)}}
 </style>""", unsafe_allow_html=True)
 
 # ───────────────────────── DIALOG ─────────────────────────
+def curve_svg(s_, el):
+    T = max(s_ * 1.5, el * 1.15 + 1)
+    W, HH, L, B = 300, 100, 26, 18
+    X = lambda t: L + t / T * (W - L - 6)
+    Y = lambda r: 8 + (1 - r) * (HH - 8 - B)
+    pts = " ".join(f"{X(T * i / 40):.1f},{Y(math.exp(-T * i / 40 / s_)):.1f}" for i in range(41))
+    t90, y90, nowr = LN_TARGET * s_, Y(0.9), math.exp(-el / s_)
+    return (f"<svg viewBox='0 0 {W} {HH + 4}' style='width:100%;margin-top:6px'>"
+            f"<line x1='{L}' x2='{W - 6}' y1='{y90:.1f}' y2='{y90:.1f}' stroke='#d4a94f' stroke-opacity='.5' stroke-dasharray='3 3'/>"
+            f"<line x1='{X(t90):.1f}' x2='{X(t90):.1f}' y1='{y90:.1f}' y2='{Y(0):.1f}' stroke='#d4a94f' stroke-opacity='.5' stroke-dasharray='3 3'/>"
+            f"<text x='2' y='{y90 + 3:.1f}' font-size='8' fill='#d4a94f'>90%</text>"
+            f"<polyline points='{pts}' fill='none' stroke='#efe6d2' stroke-width='2'/>"
+            f"<circle cx='{X(el):.1f}' cy='{Y(nowr):.1f}' r='4.5' fill='#d4a94f'/>"
+            f"<text x='{L}' y='{HH + 2}' font-size='8' fill='#8d9bb5'>0 d</text>"
+            f"<text x='{W - 6}' y='{HH + 2}' font-size='8' fill='#8d9bb5' text-anchor='end'>{T:.0f} d</text></svg>"
+            f"<div class='muted' style='margin-bottom:8px'>Minneskurva · gul punkt = nu (dag {el}) · "
+            f"90% nås efter {t90:.1f} dagar</div>")
+
+
 @st.dialog("Sura")
 def surah_dialog(num):
     name, started = raw_surah_names[num - 1], num in S
@@ -268,7 +295,10 @@ def surah_dialog(num):
     meta = (f"S {s_val:.1f} · retention {int(r_val * 100)}% · {SURAH_VERSES[num - 1]} verser"
             if started else f"Inte påbörjad · {SURAH_VERSES[num - 1]} verser")
     st.markdown(H(f"""<div class='serif' style='font-size:1.5rem'>{num}. {name}</div>
+        <div style="font-family:Amiri,serif;font-size:1.7rem;color:#d4a94f;line-height:1.4">{ARABIC[num - 1]}</div>
         <div class='muted' style='margin-bottom:10px'>{meta}</div>"""), unsafe_allow_html=True)
+    if started:
+        st.markdown(curve_svg(s_val, round(-s_val * math.log(max(r_val, 1e-9)))), unsafe_allow_html=True)
     st.caption("Hur gick det? 1 glömd · 3 okej · 5 lätt")
     hit = None
     for i, col in enumerate(st.columns(5)):
@@ -388,6 +418,27 @@ with tab_stat:
                 f"<div class='muted'>{l}</div><div class='serif' style='font-size:1.45rem;line-height:1.25'>{v}</div>"
                 f"<div class='muted'>{sub}</div></div>")
 
+    with st.container(border=True):
+        st.markdown("<div class='h2'>Mål och prognos</div>", unsafe_allow_html=True)
+        c1, c2 = st.columns(2)
+        goal = c1.number_input("Mål (juz)", 1, 30, 30, key="goal")
+        pace = c2.number_input("Tempo (ord/vecka)", 10, 5000, 250, 10, key="pace")
+        dl = st.date_input("Klar senast", TODAY + datetime.timedelta(days=365),
+                           min_value=TODAY + datetime.timedelta(days=1), key="dl")
+        rem = max(0.0, goal * TOTAL_WORDS / 30 - m_words)
+        weeks = rem / pace
+        need = rem / max(1, (dl - TODAY).days) * 7
+        vpd = need / 7 * TOTAL_VERSES / TOTAL_WORDS
+        eta = "Klart 🎉" if rem == 0 else (TODAY + datetime.timedelta(weeks=weeks)).isoformat()
+        good = pace >= need
+        st.markdown(H("<div style='display:grid;grid-template-columns:1fr 1fr;gap:8px'>"
+                      + tile("Beräknat klart", eta, f"≈ {weeks:.0f} veckor kvar")
+                      + tile("Krävs för deadline", f"{need:.0f} ord/v", f"≈ {vpd:.1f} verser/dag")
+                      + "</div>"
+                      + f"<div class='muted' style='margin-top:8px;color:{'#4caf7d' if good else '#d4a017'}'>"
+                      + ("I fas med ditt tempo" if good else "Du behöver öka tempot för att nå deadline") + "</div>"),
+                    unsafe_allow_html=True)
+
     tiles = "".join([
         tile("Påbörjade suror", len(S), f"av 114 · {len(S) / 114:.0%}"),
         tile("Bemästrade suror", len(mast), f"S ≥ {MASTERED_S:.0f}"),
@@ -434,10 +485,34 @@ with tab_suras:
                 unsafe_allow_html=True)
     flt = st.radio("Visa", ["Alla", "Pågående", "Bemästrade", "Ej påbörjade"], horizontal=True,
                    label_visibility="collapsed")
-    for n in range(1, 115):
-        if ((flt == "Pågående" and not (n in S and S[n] < MASTERED_S))
-                or (flt == "Bemästrade" and S.get(n, 0) < MASTERED_S)
-                or (flt == "Ej påbörjade" and n in S)):
-            continue
+    mode = st.radio("Sortera", ["Sura", "Lägst retention", "Högst stabilitet"], horizontal=True,
+                    label_visibility="collapsed")
+
+    def ok(n):
+        return not ((flt == "Pågående" and not (n in S and S[n] < MASTERED_S))
+                    or (flt == "Bemästrade" and S.get(n, 0) < MASTERED_S)
+                    or (flt == "Ej påbörjade" and n in S))
+
+    def row(n):
         if st.button(f"**{n}** {raw_surah_names[n - 1]}", key=f"sb_{n}", use_container_width=True):
             surah_dialog(n)
+
+    if mode == "Sura":
+        starts = sorted(set(SURAH_TO_JUZ))
+        for gi, j in enumerate(starts):
+            j_end = starts[gi + 1] - 1 if gi + 1 < len(starts) else 30
+            members = [n for n in range(1, 115) if SURAH_TO_JUZ[n - 1] == j and ok(n)]
+            if not members:
+                continue
+            tot = sum(JUZ_TOTAL_WORDS[x] for x in range(j, j_end + 1))
+            mw = sum(w for x in range(j, j_end + 1) for s_, w in JUZ_SURAH_WORDS[x].items()
+                     if S.get(s_, 0) >= MASTERED_S)
+            lab = f"Juz {j}" + (f"–{j_end}" if j_end > j else "")
+            with st.expander(f"{lab} · {mw / tot:.0%} bemästrat", expanded=flt != "Alla"):
+                for n in members:
+                    row(n)
+    else:
+        by_r = mode == "Lägst retention"
+        for n in sorted((n for n in range(1, 115) if ok(n)),
+                        key=lambda n: (n not in S, (R[n] if by_r else -S[n]) if n in S else 0, n)):
+            row(n)
