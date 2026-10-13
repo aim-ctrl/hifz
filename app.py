@@ -540,16 +540,21 @@ with tab_suras:
         for n in sorted((n for n in range(1, 115) if ok(n)), key=KEYS[mode]):
             row(n)
 
-# Keep the on-screen keyboard closed when opening dropdowns (inputmode=none on the select's search input)
+# Keep the on-screen keyboard closed for dropdowns: make the select's search input readonly + inputmode none
 st.components.v1.html("""<script>
 (function(){
   var doc = window.parent.document;
   function fix(){
     doc.querySelectorAll('[data-baseweb="select"] input').forEach(function(i){
       if (i.getAttribute('inputmode') !== 'none') i.setAttribute('inputmode', 'none');
+      if (!i.readOnly) i.readOnly = true;
     });
   }
   fix();
+  setInterval(fix, 300);
   new MutationObserver(fix).observe(doc.body, {childList: true, subtree: true});
+  ['pointerdown', 'touchstart', 'mousedown'].forEach(function(ev){
+    doc.addEventListener(ev, fix, true);
+  });
 })();
-</script>""", height=0)
+</script>""", height=1)
