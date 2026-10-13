@@ -222,6 +222,10 @@ for n in range(1, 115):
                  f"border:1px solid rgba(239,230,210,.1)!important;border-left:4px solid {edge}!important;}}"
                  f".st-key-sb_{n} button::before{{content:'{ARABIC[n - 1]}'}}"
                  f".st-key-sb_{n} button::after{{content:'{ret}'}}")
+    if S.get(n, 0) >= S_MAX:
+        tile_css += (f".st-key-sb_{n} button{{position:relative}}"
+                     f".st-key-sb_{n} button>div::after{{content:'⭐';position:absolute;left:50%;top:50%;"
+                     f"transform:translate(-50%,-50%);font-size:.95rem;text-shadow:none}}")
 
 st.markdown(f"""<style>
 @import url('https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,600&family=Amiri&family=Instrument+Sans:wght@400;600&display=swap');
@@ -508,7 +512,7 @@ with tab_suras:
             return 9999
 
     def row(n):
-        if st.button(f"**{n}** {raw_surah_names[n - 1]}" + (" ⭐" if S.get(n, 0) >= S_MAX else ""), key=f"sb_{n}", use_container_width=True):
+        if st.button(f"**{n}** {raw_surah_names[n - 1]}", key=f"sb_{n}", use_container_width=True):
             surah_dialog(n)
 
     if mode == "Sura":
