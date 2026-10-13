@@ -483,15 +483,29 @@ with tab_suras:
         <span>S 1</span><div style='flex:1;height:5px;border-radius:3px;background:linear-gradient(to right,{grad})'></div>
         <span>S 500</span></div>"""),
                 unsafe_allow_html=True)
-    flt = st.radio("Visa", ["Alla", "Pågående", "Bemästrade", "Ej påbörjade"], horizontal=True,
-                   label_visibility="collapsed")
-    mode = st.radio("Sortera", ["Sura", "Lägst retention", "Högst stabilitet"], horizontal=True,
-                    label_visibility="collapsed")
+    FILTERS = ["Alla", "Påbörjade", "Pågående", "Bemästrade", "Ej påbörjade", "Retention under 90 %",
+               "Retention under 70 %", "Svaga (S under 7 d)", "Nästan bemästrade (S 20–37)",
+               "Långa (100+ verser)", "Korta (under 20 verser)"]
+    SORTS = ["Sura", "Lägst retention", "Högst retention", "Högst stabilitet", "Lägst stabilitet",
+             "Senast granskad", "Längst sedan granskad", "Flest verser", "Färst verser", "Namn A–Z"]
+    fc, mc = st.columns(2)
+    flt = fc.selectbox("Visa", FILTERS, key="flt", label_visibility="collapsed")
+    mode = mc.selectbox("Sortera", SORTS, key="mode", label_visibility="collapsed")
 
     def ok(n):
-        return not ((flt == "Pågående" and not (n in S and S[n] < MASTERED_S))
-                    or (flt == "Bemästrade" and S.get(n, 0) < MASTERED_S)
-                    or (flt == "Ej påbörjade" and n in S))
+        s_, r_, v = S.get(n), R.get(n), SURAH_VERSES[n - 1]
+        return {"Alla": True, "Påbörjade": s_ is not None, "Pågående": s_ is not None and s_ < MASTERED_S,
+                "Bemästrade": s_ is not None and s_ >= MASTERED_S, "Ej påbörjade": s_ is None,
+                "Retention under 90 %": r_ is not None and r_ < .9, "Retention under 70 %": r_ is not None and r_ < .7,
+                "Svaga (S under 7 d)": s_ is not None and s_ < 7,
+                "Nästan bemästrade (S 20–37)": s_ is not None and 20 <= s_ < MASTERED_S,
+                "Långa (100+ verser)": v >= 100, "Korta (under 20 verser)": v < 20}[flt]
+
+    def days_ago(n):
+        try:
+            return (TODAY - datetime.date.fromisoformat(ITEM[n]["last_reviewed"])).days
+        except Exception:
+            return 9999
 
     def row(n):
         if st.button(f"**{n}** {raw_surah_names[n - 1]}", key=f"sb_{n}", use_container_width=True):
@@ -512,7 +526,16 @@ with tab_suras:
                 for n in members:
                     row(n)
     else:
-        by_r = mode == "Lägst retention"
-        for n in sorted((n for n in range(1, 115) if ok(n)),
-                        key=lambda n: (n not in S, (R[n] if by_r else -S[n]) if n in S else 0, n)):
+        KEYS = {
+            "Lägst retention": lambda n: (n not in S, R.get(n, 0), n),
+            "Högst retention": lambda n: (n not in S, -R.get(n, 0), n),
+            "Högst stabilitet": lambda n: (n not in S, -S.get(n, 0), n),
+            "Lägst stabilitet": lambda n: (n not in S, S.get(n, 0), n),
+            "Senast granskad": lambda n: (n not in S, days_ago(n), n),
+            "Längst sedan granskad": lambda n: (n not in S, -days_ago(n), n),
+            "Flest verser": lambda n: (-SURAH_VERSES[n - 1], n),
+            "Färst verser": lambda n: (SURAH_VERSES[n - 1], n),
+            "Namn A–Z": lambda n: (raw_surah_names[n - 1].lstrip("'").lower(), n),
+        }
+        for n in sorted((n for n in range(1, 115) if ok(n)), key=KEYS[mode]):
             row(n)
