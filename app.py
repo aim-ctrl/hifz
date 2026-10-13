@@ -508,7 +508,7 @@ with tab_suras:
             return 9999
 
     def row(n):
-        if st.button(f"**{n}** {raw_surah_names[n - 1]}", key=f"sb_{n}", use_container_width=True):
+        if st.button(f"**{n}** {raw_surah_names[n - 1]}" + (" ⭐" if S.get(n, 0) >= S_MAX else ""), key=f"sb_{n}", use_container_width=True):
             surah_dialog(n)
 
     if mode == "Sura":
