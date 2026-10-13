@@ -332,6 +332,30 @@ def surah_dialog(num):
 
 
 # ───────────────────────── HERO ─────────────────────────
+def juz_pos(j):  # % of the Quran (by words) before juz j starts
+    return sum(JUZ_TOTAL_WORDS[x] for x in range(1, j)) / TOTAL_WORDS * 100
+
+
+segs = ""
+for n in range(1, 115):
+    if n in S:
+        r_, g_, b_ = s_to_rgb(S[n])
+        p_ = int(R[n] * 100)
+        bg = f"linear-gradient(to top,rgb({r_},{g_},{b_}) {p_}%,rgba({r_},{g_},{b_},.2) {p_}%)"
+        tip = f"{n}. {raw_surah_names[n - 1]} · S {S[n]:.0f} · R {p_}%"
+    else:
+        bg, tip = "rgba(239,230,210,.07)", f"{n}. {raw_surah_names[n - 1]}"
+    segs += (f"<div title='{tip.replace(chr(39), '&#39;')}' "
+             f"style='width:{SURAH_WORDS[n - 1] / TOTAL_WORDS * 100:.4f}%;flex:none;background:{bg}'></div>")
+lines = "".join(f"<div style='position:absolute;top:0;bottom:0;left:{juz_pos(j):.3f}%;"
+                f"border-left:1px solid rgba(13,23,38,.75)'></div>" for j in range(2, 31))
+labels = "".join(f"<span style='position:absolute;left:{(juz_pos(j) + juz_pos(j + 1)) / 2:.3f}%;"
+                 f"transform:translateX(-50%)'>{j}</span>" for j in range(1, 31))
+strip_html = (f"<div style='flex:1 1 100%;margin-top:-4px'>"
+              f"<div style='position:relative;display:flex;height:34px;border-radius:7px;overflow:hidden;"
+              f"box-shadow:0 0 0 1px #26385a'>{segs}{lines}</div>"
+              f"<div style='position:relative;height:11px;margin-top:3px;font-size:.5rem;color:#8d9bb5'>{labels}</div></div>")
+
 C = 2 * math.pi * 54
 pm, ps = m_words / TOTAL_WORDS, s_words / TOTAL_WORDS
 st.markdown(H(f"""
@@ -352,33 +376,13 @@ st.markdown(H(f"""
    <div><b>{len(mast)}</b>/114 suror</div><div><b>{juz_done}</b>/30 juz</div>
    <div><b>{m_verses:,}</b> verser</div><div><b>{len(S) - len(mast)}</b> pågår</div>
   </div>
- </div>
+ </div>{strip_html}
 </div>"""), unsafe_allow_html=True)
 
 tab_over, tab_stat, tab_suras = st.tabs(["Översikt", "Statistik", "Suror"])
 
 # ───────────────────────── OVERVIEW ─────────────────────────
 with tab_over:
-    # Koranremsan: every surah as a segment (width = words, colour = S, fill = retention)
-    segs = ""
-    for n in range(1, 115):
-        if n in S:
-            r_, g_, b_ = s_to_rgb(S[n])
-            p_ = int(R[n] * 100)
-            bg = f"linear-gradient(to top,rgb({r_},{g_},{b_}) {p_}%,rgba({r_},{g_},{b_},.2) {p_}%)"
-            tip = f"{n}. {raw_surah_names[n - 1]} · S {S[n]:.0f} · R {p_}%"
-        else:
-            bg, tip = "rgba(239,230,210,.07)", f"{n}. {raw_surah_names[n - 1]}"
-        segs += (f"<div title='{tip.replace(chr(39), '&#39;')}' "
-                 f"style='flex:{SURAH_WORDS[n - 1]} 1 0;min-width:1px;background:{bg}'></div>")
-    ticks = "".join(
-        f"<span style='position:absolute;left:{sum(JUZ_TOTAL_WORDS[x] for x in range(1, j)) / TOTAL_WORDS * 100:.2f}%;"
-        f"border-left:1px solid #26385a;padding-left:2px'>{j}</span>" for j in (1, 5, 10, 15, 20, 25, 30))
-    st.markdown(H("<div class='card'><div class='h2'>Koranremsan</div>"
-                  f"<div style='display:flex;height:36px;border-radius:8px;overflow:hidden;border:1px solid #26385a'>{segs}</div>"
-                  f"<div style='position:relative;height:14px;margin-top:3px;font-size:.55rem;color:#8d9bb5'>{ticks}</div></div>"),
-                unsafe_allow_html=True)
-
     # retention histogram
     bk = [0] * 51
     for r in R.values():
