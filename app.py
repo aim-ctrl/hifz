@@ -522,13 +522,11 @@ with tab_suras:
             members = [n for n in range(1, 115) if SURAH_TO_JUZ[n - 1] == j and ok(n)]
             if not members:
                 continue
-            tot = sum(JUZ_TOTAL_WORDS[x] for x in range(j, j_end + 1))
-            mw = sum(w for x in range(j, j_end + 1) for s_, w in JUZ_SURAH_WORDS[x].items()
-                     if S.get(s_, 0) >= MASTERED_S)
-            lab = f"Juz {j}" + (f"–{j_end}" if j_end > j else "")
-            with st.expander(f"{lab} · {mw / tot:.0%} bemästrat", expanded=flt != "Alla"):
-                for n in members:
-                    row(n)
+            lab = f"{j}–{j_end}" if j_end > j else f"{j}"
+            st.markdown(f"<div style='font-size:.65rem;color:#8d9bb5;margin:10px 0 -2px 2px'>{lab}</div>",
+                        unsafe_allow_html=True)
+            for n in members:
+                row(n)
     else:
         KEYS = {
             "Lägst retention": lambda n: (n not in S, R.get(n, 0), n),
