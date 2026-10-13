@@ -359,6 +359,26 @@ tab_over, tab_stat, tab_suras = st.tabs(["Översikt", "Statistik", "Suror"])
 
 # ───────────────────────── OVERVIEW ─────────────────────────
 with tab_over:
+    # Koranremsan: every surah as a segment (width = words, colour = S, fill = retention)
+    segs = ""
+    for n in range(1, 115):
+        if n in S:
+            r_, g_, b_ = s_to_rgb(S[n])
+            p_ = int(R[n] * 100)
+            bg = f"linear-gradient(to top,rgb({r_},{g_},{b_}) {p_}%,rgba({r_},{g_},{b_},.2) {p_}%)"
+            tip = f"{n}. {raw_surah_names[n - 1]} · S {S[n]:.0f} · R {p_}%"
+        else:
+            bg, tip = "rgba(239,230,210,.07)", f"{n}. {raw_surah_names[n - 1]}"
+        segs += (f"<div title='{tip.replace(chr(39), '&#39;')}' "
+                 f"style='flex:{SURAH_WORDS[n - 1]} 1 0;min-width:1px;background:{bg}'></div>")
+    ticks = "".join(
+        f"<span style='position:absolute;left:{sum(JUZ_TOTAL_WORDS[x] for x in range(1, j)) / TOTAL_WORDS * 100:.2f}%;"
+        f"border-left:1px solid #26385a;padding-left:2px'>{j}</span>" for j in (1, 5, 10, 15, 20, 25, 30))
+    st.markdown(H("<div class='card'><div class='h2'>Koranremsan</div>"
+                  f"<div style='display:flex;height:36px;border-radius:8px;overflow:hidden;border:1px solid #26385a'>{segs}</div>"
+                  f"<div style='position:relative;height:14px;margin-top:3px;font-size:.55rem;color:#8d9bb5'>{ticks}</div></div>"),
+                unsafe_allow_html=True)
+
     # retention histogram
     bk = [0] * 51
     for r in R.values():
