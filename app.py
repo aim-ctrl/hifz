@@ -221,6 +221,7 @@ for n in range(1, 115):
     tile_css += (f".st-key-sb_{n} button{{background:{bg}!important;color:{fg}!important;"
                  f"border:1px solid rgba(239,230,210,.1)!important;border-left:4px solid {edge}!important;}}"
                  f".st-key-sb_{n} button::before{{content:'{ARABIC[n - 1]}'}}"
+                 f".st-key-sb_{n} button>div::before{{content:'{SURAH_TO_JUZ[n - 1]}'}}"
                  f".st-key-sb_{n} button::after{{content:'{ret}'}}")
     if S.get(n, 0) >= S_MAX:
         tile_css += (f".st-key-sb_{n} button{{position:relative}}"
@@ -258,6 +259,9 @@ div[role="dialog"]{{background:var(--panel)!important;color:var(--parch)}}
  text-shadow:0 1px 2px rgba(0,0,0,.4);font-size:.92rem!important}}
 [class*="st-key-sb_"] button p{{margin:0;text-align:left}}
 [class*="st-key-sb_"] button>div{{order:1}}
+[class*="st-key-sb_"] button{{position:relative}}
+[class*="st-key-sb_"] button>div::before{{position:absolute;left:.75rem;top:3px;width:1.3rem;text-align:center;
+ font-size:.52rem;line-height:1;font-weight:600;opacity:.6;text-shadow:none}}
 [class*="st-key-sb_"] button::before{{order:2;margin-left:auto;font-family:'Amiri',serif;font-size:1.15rem;opacity:.9;
  padding-right:10px;direction:rtl}}
 [class*="st-key-sb_"] button::after{{order:3;min-width:2.5rem;text-align:right;font-weight:600}}
@@ -516,16 +520,8 @@ with tab_suras:
             surah_dialog(n)
 
     if mode == "Sura":
-        starts = sorted(set(SURAH_TO_JUZ))
-        for gi, j in enumerate(starts):
-            j_end = starts[gi + 1] - 1 if gi + 1 < len(starts) else 30
-            members = [n for n in range(1, 115) if SURAH_TO_JUZ[n - 1] == j and ok(n)]
-            if not members:
-                continue
-            lab = f"{j}–{j_end}" if j_end > j else f"{j}"
-            st.markdown(f"<div style='font-size:.65rem;color:#8d9bb5;margin:10px 0 -2px 2px'>{lab}</div>",
-                        unsafe_allow_html=True)
-            for n in members:
+        for n in range(1, 115):
+            if ok(n):
                 row(n)
     else:
         KEYS = {
